@@ -1,4 +1,4 @@
-import { HandLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision';
+import { HandLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import type { HandData, Gesture } from '../types/HandGesture';
 import { OneEuroFilter } from '../utils/OneEuroFilter';
 
@@ -218,10 +218,8 @@ export class HandTracker {
             this.ctx.translate(-this.canvas.width, 0);
 
             if (this.results.landmarks) {
-                const drawingUtils = new DrawingUtils(this.ctx);
                 for (const landmarks of this.results.landmarks) {
-                    drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
-                    drawingUtils.drawLandmarks(landmarks, { color: '#FF0000', lineWidth: 1 });
+                    this.drawWireframeHand(landmarks);
                 }
             }
             this.ctx.restore();
@@ -299,5 +297,61 @@ export class HandTracker {
 
     private distance(p1: { x: number, y: number }, p2: { x: number, y: number }) {
         return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+    }
+
+    private drawWireframeHand(landmarks: any[]) {
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        // Convert normalized coords to canvas coords
+        const pts = landmarks.map(lm => ({
+            x: lm.x * w,
+            y: lm.y * h
+        }));
+
+        // Hand connections (MediaPipe order)
+        const connections = [
+            [0, 1], [1, 2], [2, 3], [3, 4],       // Thumb
+            [0, 5], [5, 6], [6, 7], [7, 8],       // Index
+            [0, 9], [9, 10], [10, 11], [11, 12],  // Middle
+            [0, 13], [13, 14], [14, 15], [15, 16], // Ring
+            [0, 17], [17, 18], [18, 19], [19, 20], // Pinky
+            [5, 9], [9, 13], [13, 17], [0, 17]    // Palm
+        ];
+
+        // Draw connections as glowing lines
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeStyle = 'rgba(100, 200, 255, 0.8)';
+        this.ctx.shadowColor = '#44ddff';
+        this.ctx.shadowBlur = 10;
+
+        for (const [a, b] of connections) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(pts[a].x, pts[a].y);
+            this.ctx.lineTo(pts[b].x, pts[b].y);
+            this.ctx.stroke();
+        }
+
+        // Draw joints as small circles
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.shadowBlur = 15;
+        for (const pt of pts) {
+            this.ctx.beginPath();
+            this.ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+
+        // Draw fingertip highlights (tips are indices 4, 8, 12, 16, 20)
+        const tips = [4, 8, 12, 16, 20];
+        this.ctx.fillStyle = 'rgba(68, 221, 255, 1)';
+        this.ctx.shadowBlur = 20;
+        for (const i of tips) {
+            this.ctx.beginPath();
+            this.ctx.arc(pts[i].x, pts[i].y, 6, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+
+        // Reset shadow
+        this.ctx.shadowBlur = 0;
     }
 }
