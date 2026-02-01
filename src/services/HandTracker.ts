@@ -25,6 +25,7 @@ export class HandTracker {
 
     // State for Gunner Thumb Flick
     private lastGunnerThumbDist: number = -1;
+    private lastDetectionTime: number = 0;
 
     constructor() {
         // Initialize Filters with minCutoff = 1.0, beta = 0.007, dCutoff = 1.0
@@ -167,8 +168,9 @@ export class HandTracker {
                     const delta = currentDist - this.lastGunnerThumbDist;
                     const percentChange = delta / this.lastGunnerThumbDist;
 
-                    // Check for rapid increase > 20%
-                    if (percentChange > 0.20 && gesture === 'GUN') {
+                    // Check for rapid increase > 15% (Relaxed from 20%)
+                    // Removed strict 'GUN' check to allow for transitional states during fast motion
+                    if (percentChange > 0.15) {
                         flickDetected = true;
                     }
                 }
@@ -196,9 +198,17 @@ export class HandTracker {
     }
 
     private detectLoop() {
+        const now = performance.now();
+        // Throttle to ~30 FPS (33ms)
+        if (now - this.lastDetectionTime < 33) {
+            requestAnimationFrame(() => this.detectLoop());
+            return;
+        }
+
         if (this.handLandmarker && this.video.currentTime !== this.lastVideoTime) {
+            this.lastDetectionTime = now;
             this.lastVideoTime = this.video.currentTime;
-            this.results = this.handLandmarker.detectForVideo(this.video, performance.now());
+            this.results = this.handLandmarker.detectForVideo(this.video, now);
 
             // Draw debug
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
