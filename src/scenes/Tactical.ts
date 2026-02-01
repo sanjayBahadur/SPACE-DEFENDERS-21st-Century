@@ -86,8 +86,8 @@ export class Tactical extends Phaser.Scene {
             }
         }
 
-        // LERP crosshair to target (0.1 factor)
-        this.cursor.x = Phaser.Math.Linear(this.cursor.x, this.crosshairTarget.x, 0.1);
-        this.cursor.y = Phaser.Math.Linear(this.cursor.y, this.crosshairTarget.y, 0.1);
+        // LERP crosshair to target (0.15 factor)
+        this.cursor.x = Phaser.Math.Linear(this.cursor.x, this.crosshairTarget.x, 0.15);
+        this.cursor.y = Phaser.Math.Linear(this.cursor.y, this.crosshairTarget.y, 0.15);
     }
 }

@@ -27,11 +27,11 @@ export class HandTracker {
     private lastGunnerThumbDist: number = -1;
 
     constructor() {
-        // Initialize Filters with minCutoff = 1.0, beta = 0.007
-        this.pilotFilterX = new OneEuroFilter(1.0, 0.007);
-        this.pilotFilterY = new OneEuroFilter(1.0, 0.007);
-        this.gunnerFilterX = new OneEuroFilter(1.0, 0.007);
-        this.gunnerFilterY = new OneEuroFilter(1.0, 0.007);
+        // Initialize Filters with minCutoff = 1.0, beta = 0.007, dCutoff = 1.0
+        this.pilotFilterX = new OneEuroFilter(1.0, 0.007, 1.0);
+        this.pilotFilterY = new OneEuroFilter(1.0, 0.007, 1.0);
+        this.gunnerFilterX = new OneEuroFilter(1.0, 0.007, 1.0);
+        this.gunnerFilterY = new OneEuroFilter(1.0, 0.007, 1.0);
 
         // Create hidden video element
         this.video = document.createElement('video');
@@ -109,9 +109,16 @@ export class HandTracker {
             // Gesture Logic
             const gesture = this.detectGesture(landmarks);
 
-            // Coordinates: Use Index Finger Tip (8) for pointer
-            const rawX = landmarks[8].x;
-            const rawY = landmarks[8].y;
+            // Coordinates: Default to Palm Center (Middle MCP - 9)
+            let sourceIndex = 9;
+
+            // Exception: Gunner with GUN gesture uses Index Tip (8)
+            if (!isLeft && gesture === 'GUN') {
+                sourceIndex = 8;
+            }
+
+            const rawX = landmarks[sourceIndex].x;
+            const rawY = landmarks[sourceIndex].y;
 
             // Mirror X: 1 - x (Ensure natural movement)
             const x = 1 - rawX;
@@ -121,10 +128,16 @@ export class HandTracker {
             let filteredY = y;
             let flickDetected = false;
 
+            const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
+
             if (isLeft) {
-                // Pilot
-                filteredX = this.pilotFilterX.filter(x, now);
-                filteredY = this.pilotFilterY.filter(y, now);
+                // Pilot (Left Hand) -> Zone [0.0, 0.5]
+                // Map [0.0, 0.5] -> [0, 1]
+                const normalizedX = clamp(x / 0.5, 0, 1);
+                const normalizedY = clamp(y, 0, 1);
+
+                filteredX = this.pilotFilterX.filter(normalizedX, now);
+                filteredY = this.pilotFilterY.filter(normalizedY, now);
 
                 result.pilot = {
                     x: filteredX,
@@ -133,9 +146,13 @@ export class HandTracker {
                     isLeft: true
                 };
             } else {
-                // Gunner
-                filteredX = this.gunnerFilterX.filter(x, now);
-                filteredY = this.gunnerFilterY.filter(y, now);
+                // Gunner (Right Hand) -> Zone [0.5, 1.0]
+                // Map [0.5, 1.0] -> [0, 1]
+                const normalizedX = clamp((x - 0.5) / 0.5, 0, 1);
+                const normalizedY = clamp(y, 0, 1);
+
+                filteredX = this.gunnerFilterX.filter(normalizedX, now);
+                filteredY = this.gunnerFilterY.filter(normalizedY, now);
 
                 // Detect Thumb-Flick for Gunner
                 // Thumb Tip (4) and Index Base (5 - Index MCP)
