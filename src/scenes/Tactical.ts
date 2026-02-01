@@ -4,6 +4,7 @@ import { HandTracker } from '../services/HandTracker';
 export class Tactical extends Phaser.Scene {
     private cursor!: Phaser.GameObjects.Rectangle;
     private debugText!: Phaser.GameObjects.Text;
+    private crosshairTarget = new Phaser.Math.Vector2(0, 0);
 
     constructor() {
         super('Tactical');
@@ -22,51 +23,71 @@ export class Tactical extends Phaser.Scene {
             fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', fontStyle: 'bold'
         });
 
-        // Crosshair pattern
-        const cx = width / 4; // Center of this viewport (relative to camera)
+        // Crosshair pattern (Midpoint of viewport)
+        const cx = width / 4;
         const cy = height / 2;
         this.add.circle(cx, cy, 100).setStrokeStyle(4, 0xff0000, 0.5);
         this.add.line(0, 0, cx - 120, cy, cx + 120, cy, 0xff0000, 0.5);
         this.add.line(0, 0, cx, cy - 120, cx, cy + 120, 0xff0000, 0.5);
 
         // Debug Cursor
-        this.cursor = this.add.rectangle(0, 0, 20, 20, 0x00ff00);
-        this.debugText = this.add.text(20, 60, 'Waiting for hand...', { fontSize: '16px', color: '#00ff00' });
+        // Start at center
+        this.crosshairTarget.set(cx, cy);
+        this.cursor = this.add.rectangle(cx, cy, 20, 20, 0x00ff00);
+
+        this.debugText = this.add.text(20, 60, 'Waiting for Gunner...', { fontSize: '16px', color: '#00ff00' });
     }
 
     update() {
         const tracker = this.registry.get('handTracker') as HandTracker;
         if (tracker) {
-            const hands = tracker.getHandData();
-            if (hands.length > 0) {
-                // Using logic: If 2 hands, maybe map one to each?
-                // For now, let's use the LAST hand for tactical if available, or first.
-                // Or just map the same hand to both for testing.
-                const hand = hands.length > 1 ? hands[1] : hands[0];
+            const hands = tracker.getHands();
+            const gunner = hands.gunner;
 
+            if (gunner) {
                 // Local coordinates for this camera (0 to width/2)
                 const viewWidth = this.scale.width / 2;
                 const viewHeight = this.scale.height;
+                const targetX = gunner.x * viewWidth;
+                const targetY = gunner.y * viewHeight;
 
-                this.cursor.x = hand.x * viewWidth;
-                this.cursor.y = hand.y * viewHeight;
+                // Gesture Logic
+                if (gunner.gesture === 'GUN') {
+                    // Update target only when aiming
+                    this.crosshairTarget.x = targetX;
+                    this.crosshairTarget.y = targetY;
+                    this.cursor.setFillStyle(0xffff00); // Yellow for Gun
 
-                let color = 0x00ff00;
-                if (hand.gesture === 'FIST') color = 0xff0000;
-                if (hand.gesture === 'GUN') color = 0xffff00;
-                if (hand.gesture === 'PALM') color = 0x00ffff;
-
-                this.cursor.setFillStyle(color);
+                    // Check for Fire
+                    if (gunner.flickDetected) {
+                        console.log('FIRE DETECTED!');
+                        this.game.events.emit('FIRE');
+                        // Visual feedback for fire
+                        this.cameras.main.shake(100, 0.01);
+                        this.cursor.setFillStyle(0xffffff);
+                    }
+                } else if (gunner.gesture === 'FIST') {
+                    this.cursor.setFillStyle(0xff0000);
+                } else if (gunner.gesture === 'PALM') {
+                    this.cursor.setFillStyle(0x00ffff);
+                } else {
+                    this.cursor.setFillStyle(0x00ff00);
+                }
 
                 this.debugText.setText(
-                    `Gesture: ${hand.gesture}\n` +
-                    `X: ${hand.x.toFixed(2)}\n` +
-                    `Y: ${hand.y.toFixed(2)}\n` +
-                    `Hand: ${hand.isLeft ? 'Left' : 'Right'}`
+                    `Gesture: ${gunner.gesture}\n` +
+                    `X: ${gunner.x.toFixed(2)}\n` +
+                    `Y: ${gunner.y.toFixed(2)}\n` +
+                    `Hand: Gunner (Right)\n` +
+                    `Flick: ${gunner.flickDetected ? 'YES' : 'NO'}`
                 );
             } else {
-                this.debugText.setText('No hand detected');
+                this.debugText.setText('Waiting for Gunner...');
             }
         }
+
+        // LERP crosshair to target (0.1 factor)
+        this.cursor.x = Phaser.Math.Linear(this.cursor.x, this.crosshairTarget.x, 0.1);
+        this.cursor.y = Phaser.Math.Linear(this.cursor.y, this.crosshairTarget.y, 0.1);
     }
 }

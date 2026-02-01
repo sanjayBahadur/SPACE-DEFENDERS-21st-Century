@@ -1,5 +1,11 @@
 import { HandLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision';
 import type { HandData, Gesture } from '../types/HandGesture';
+import { OneEuroFilter } from '../utils/OneEuroFilter';
+
+export interface HandsResult {
+    pilot: HandData | null;
+    gunner: HandData | null;
+}
 
 export class HandTracker {
     private handLandmarker: HandLandmarker | undefined;
@@ -9,7 +15,24 @@ export class HandTracker {
     private lastVideoTime = -1;
     private results: any = undefined;
 
+    // Filters for Pilot (Left Hand)
+    private pilotFilterX: OneEuroFilter;
+    private pilotFilterY: OneEuroFilter;
+
+    // Filters for Gunner (Right Hand)
+    private gunnerFilterX: OneEuroFilter;
+    private gunnerFilterY: OneEuroFilter;
+
+    // State for Gunner Thumb Flick
+    private lastGunnerThumbDist: number = -1;
+
     constructor() {
+        // Initialize Filters with minCutoff = 1.0, beta = 0.007
+        this.pilotFilterX = new OneEuroFilter(1.0, 0.007);
+        this.pilotFilterY = new OneEuroFilter(1.0, 0.007);
+        this.gunnerFilterX = new OneEuroFilter(1.0, 0.007);
+        this.gunnerFilterY = new OneEuroFilter(1.0, 0.007);
+
         // Create hidden video element
         this.video = document.createElement('video');
         this.video.autoplay = true;
@@ -60,16 +83,28 @@ export class HandTracker {
         }
     }
 
-    getHandData(): HandData[] {
-        if (!this.results || !this.results.landmarks) return [];
+    getHands(): HandsResult {
+        const result: HandsResult = { pilot: null, gunner: null };
+        if (!this.results || !this.results.landmarks) return result;
 
-        const hands: HandData[] = [];
+        const now = performance.now();
 
         // Iterate over detected hands
         for (let i = 0; i < this.results.landmarks.length; i++) {
             const landmarks = this.results.landmarks[i];
             const handedness = this.results.handedness[i][0];
-            const isLeft = handedness.categoryName === 'Left'; // Note: In Selfie mode, this might be swapped depending on mirroring
+            const detectedCategory = handedness.categoryName;
+            // In MediaPipe with front camera, "Left" usually refers to the left hand of the person 
+            // (which appears on the Right side of the screen if unmirrored). 
+            // If we mirror the video display, "Left" hand should ideally be controlled by the person's left hand.
+
+            // Assign Roles:
+            // Pilot = Left Hand
+            // Gunner = Right Hand
+
+            // Note: We need a consistent mapping. 
+            // If the user raises their physical Left hand, MediaPipe (assuming selfie mode default) says "Left".
+            const isLeft = detectedCategory === 'Left';
 
             // Gesture Logic
             const gesture = this.detectGesture(landmarks);
@@ -78,18 +113,61 @@ export class HandTracker {
             const rawX = landmarks[8].x;
             const rawY = landmarks[8].y;
 
-            // Mirror X: 1 - x
+            // Mirror X: 1 - x (Ensure natural movement)
             const x = 1 - rawX;
             const y = rawY;
 
-            hands.push({
-                x,
-                y,
-                gesture,
-                isLeft
-            });
+            let filteredX = x;
+            let filteredY = y;
+            let flickDetected = false;
+
+            if (isLeft) {
+                // Pilot
+                filteredX = this.pilotFilterX.filter(x, now);
+                filteredY = this.pilotFilterY.filter(y, now);
+
+                result.pilot = {
+                    x: filteredX,
+                    y: filteredY,
+                    gesture,
+                    isLeft: true
+                };
+            } else {
+                // Gunner
+                filteredX = this.gunnerFilterX.filter(x, now);
+                filteredY = this.gunnerFilterY.filter(y, now);
+
+                // Detect Thumb-Flick for Gunner
+                // Thumb Tip (4) and Index Base (5 - Index MCP)
+                // "detect a 'Shoot' event when the distance ... increases rapidly (>20% change in 2 frames)."
+
+                // Calculate distance
+                const thumbTip = landmarks[4];
+                const indexBase = landmarks[5]; // Index MCP
+                const currentDist = this.distance(thumbTip, indexBase);
+
+                if (this.lastGunnerThumbDist !== -1) {
+                    const delta = currentDist - this.lastGunnerThumbDist;
+                    const percentChange = delta / this.lastGunnerThumbDist;
+
+                    // Check for rapid increase > 20%
+                    if (percentChange > 0.20 && gesture === 'GUN') {
+                        flickDetected = true;
+                    }
+                }
+
+                this.lastGunnerThumbDist = currentDist;
+
+                result.gunner = {
+                    x: filteredX,
+                    y: filteredY,
+                    gesture,
+                    isLeft: false,
+                    flickDetected
+                };
+            }
         }
-        return hands;
+        return result;
     }
 
     private detectLoop() {
@@ -147,7 +225,7 @@ export class HandTracker {
         const middleTip = landmarks[12];
         const ringTip = landmarks[16];
         const pinkyTip = landmarks[20];
-        // const thumbTip = landmarks[4]; // Unused
+        // const thumbTip = landmarks[4]; // Unused for basic checks
 
         // FIST: All 4 fingers curled
         const fingersCurled =
