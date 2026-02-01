@@ -51,11 +51,17 @@ export class Tactical extends Phaser.Scene {
                 const targetX = gunner.x * viewWidth;
                 const targetY = gunner.y * viewHeight;
 
+                // Movement requires Index Finger Extension for better control
+                if (gunner.indexExtended) {
+                    this.crosshairTarget.x = targetX;
+                    this.crosshairTarget.y = targetY;
+                }
+
                 // Gesture Logic
                 if (gunner.gesture === 'GUN') {
                     // Update target only when aiming
-                    this.crosshairTarget.x = targetX;
-                    this.crosshairTarget.y = targetY;
+                    // this.crosshairTarget.x = targetX; // Moved up to check extension
+                    // this.crosshairTarget.y = targetY; // Moved up
                     this.cursor.setFillStyle(0xffff00); // Yellow for Gun
 
                     // Check for Fire
@@ -79,15 +85,16 @@ export class Tactical extends Phaser.Scene {
                     `X: ${gunner.x.toFixed(2)}\n` +
                     `Y: ${gunner.y.toFixed(2)}\n` +
                     `Hand: Gunner (Right)\n` +
-                    `Flick: ${gunner.flickDetected ? 'YES' : 'NO'}`
+                    `Flick: ${gunner.flickDetected ? 'YES' : 'NO'}\n` +
+                    `IndexExt: ${gunner.indexExtended ? 'YES' : 'NO'}`
                 );
             } else {
                 this.debugText.setText('Waiting for Gunner...');
             }
         }
 
-        // LERP crosshair to target (0.15 factor)
-        this.cursor.x = Phaser.Math.Linear(this.cursor.x, this.crosshairTarget.x, 0.15);
-        this.cursor.y = Phaser.Math.Linear(this.cursor.y, this.crosshairTarget.y, 0.15);
+        // LERP crosshair to target (0.2 factor)
+        this.cursor.x = Phaser.Math.Linear(this.cursor.x, this.crosshairTarget.x, 0.2);
+        this.cursor.y = Phaser.Math.Linear(this.cursor.y, this.crosshairTarget.y, 0.2);
     }
 }

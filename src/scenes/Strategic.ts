@@ -82,8 +82,8 @@ export class Strategic extends Phaser.Scene {
             }
         }
 
-        // LERP ship to target (0.15 factor)
-        this.cursor.x = Phaser.Math.Linear(this.cursor.x, this.shipTarget.x, 0.15);
-        this.cursor.y = Phaser.Math.Linear(this.cursor.y, this.shipTarget.y, 0.15);
+        // LERP ship to target (0.2 factor)
+        this.cursor.x = Phaser.Math.Linear(this.cursor.x, this.shipTarget.x, 0.2);
+        this.cursor.y = Phaser.Math.Linear(this.cursor.y, this.shipTarget.y, 0.2);
     }
 }

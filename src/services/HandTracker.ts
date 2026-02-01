@@ -112,8 +112,8 @@ export class HandTracker {
             // Coordinates: Default to Palm Center (Middle MCP - 9)
             let sourceIndex = 9;
 
-            // Exception: Gunner with GUN gesture uses Index Tip (8)
-            if (!isLeft && gesture === 'GUN') {
+            // Exception: Gunner (Right Hand) uses Index Tip (8) for precision cursor
+            if (!isLeft) {
                 sourceIndex = 8;
             }
 
@@ -131,9 +131,9 @@ export class HandTracker {
             const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
 
             if (isLeft) {
-                // Pilot (Left Hand) -> Zone [0.0, 0.5]
-                // Map [0.0, 0.5] -> [0, 1]
-                const normalizedX = clamp(x / 0.5, 0, 1);
+                // Pilot (Left Hand) -> Active Zone [0.1, 0.45]
+                // Map [0.1, 0.45] -> [0, 1]
+                const normalizedX = clamp((x - 0.1) / (0.45 - 0.1), 0, 1);
                 const normalizedY = clamp(y, 0, 1);
 
                 filteredX = this.pilotFilterX.filter(normalizedX, now);
@@ -146,9 +146,9 @@ export class HandTracker {
                     isLeft: true
                 };
             } else {
-                // Gunner (Right Hand) -> Zone [0.5, 1.0]
-                // Map [0.5, 1.0] -> [0, 1]
-                const normalizedX = clamp((x - 0.5) / 0.5, 0, 1);
+                // Gunner (Right Hand) -> Active Zone [0.55, 0.9]
+                // Map [0.55, 0.9] -> [0, 1]
+                const normalizedX = clamp((x - 0.55) / (0.9 - 0.55), 0, 1);
                 const normalizedY = clamp(y, 0, 1);
 
                 filteredX = this.gunnerFilterX.filter(normalizedX, now);
@@ -175,12 +175,20 @@ export class HandTracker {
 
                 this.lastGunnerThumbDist = currentDist;
 
+                // Sensitivity Check: Is Index Extended?
+                // dist(8, 5) > dist(6, 5)
+                // 8: Index Tip, 5: Index MCP, 6: Index PIP
+                const d8_5 = this.distance(landmarks[8], landmarks[5]);
+                const d6_5 = this.distance(landmarks[6], landmarks[5]);
+                const indexExtended = d8_5 > d6_5;
+
                 result.gunner = {
                     x: filteredX,
                     y: filteredY,
                     gesture,
                     isLeft: false,
-                    flickDetected
+                    flickDetected,
+                    indexExtended
                 };
             }
         }
