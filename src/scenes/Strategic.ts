@@ -7,10 +7,12 @@ export class Strategic extends Phaser.Scene {
     private shipTarget = new Phaser.Math.Vector2(0, 0);
     private isGrabbing: boolean = false;
     private currentShipFrame: number = 1;
+    private shipSpeedMultiplier: number = 1;
 
     // Obstacles
-    private asteroids!: Phaser.GameObjects.Group;
+    private meteors!: Phaser.GameObjects.Group;
     private blackHoles!: Phaser.GameObjects.Group;
+    private creatures!: Phaser.GameObjects.Group;
     private deathRays!: Phaser.GameObjects.Group;
     private warnings!: Phaser.GameObjects.Group;
 
@@ -40,23 +42,23 @@ export class Strategic extends Phaser.Scene {
         this.cameras.main.setViewport(0, 0, vw, vh);
         this.cameras.main.setBackgroundColor('#000005');
 
-        // === STARFIELD (behind panel) ===
-        for (let i = 0; i < 60; i++) {
+        // === STARFIELD ===
+        for (let i = 0; i < 50; i++) {
             const star = this.add.circle(
                 Phaser.Math.Between(0, vw),
                 Phaser.Math.Between(0, vh),
-                Phaser.Math.FloatBetween(0.3, 1.2),
+                Phaser.Math.FloatBetween(0.3, 1),
                 0x4488ff,
-                Phaser.Math.FloatBetween(0.15, 0.35)
+                Phaser.Math.FloatBetween(0.1, 0.3)
             );
-            (star as any).speed = Phaser.Math.FloatBetween(0.2, 0.6);
+            (star as any).speed = Phaser.Math.FloatBetween(0.15, 0.5);
             this.stars.push(star);
         }
 
-        // === PANEL BACKGROUND (PannelV1) ===
+        // === PANEL BACKGROUND ===
         this.panelBg = this.add.image(vw / 2, vh / 2, 'pannelV1');
         this.panelBg.setDisplaySize(vw, vh);
-        this.panelBg.setAlpha(0.25); // Semi-transparent overlay
+        this.panelBg.setAlpha(0.2);
 
         // === HUD ===
         this.add.text(20, 20, 'PILOT CONTROL', {
@@ -67,42 +69,63 @@ export class Strategic extends Phaser.Scene {
             fontFamily: 'Courier', fontSize: '10px', color: '#446688'
         });
 
-        // Hull Bar
         this.add.text(20, vh - 55, 'HULL', { fontFamily: 'Courier', fontSize: '9px', color: '#446688' });
         this.add.rectangle(90, vh - 42, 120, 8, 0x222244);
         this.hullBar = this.add.rectangle(90, vh - 42, 120, 8, 0x44aaff);
 
-        // Game Over
         this.gameOverText = this.add.text(vw / 2, vh / 2, 'HULL BREACH', {
             fontSize: '28px', color: '#ff4444', fontStyle: 'bold'
         }).setOrigin(0.5).setVisible(false);
 
-        // === SHIP (using pilotship sprites) ===
+        // === SHIP ===
         const cx = vw / 2;
         const cy = vh / 2;
         this.shipTarget.set(cx, cy);
 
         this.ship = this.add.sprite(cx, cy, 'pilotship1');
-        this.ship.setScale(0.15); // Adjust scale as needed
+        this.ship.setScale(0.15);
         this.ship.setDepth(10);
 
         // === GROUPS ===
-        this.asteroids = this.add.group();
+        this.meteors = this.add.group();
         this.blackHoles = this.add.group();
+        this.creatures = this.add.group();
         this.deathRays = this.add.group();
         this.warnings = this.add.group();
 
         // Spawn Timers
-        this.time.addEvent({ delay: 4000, callback: this.spawnAsteroidWithWarning, callbackScope: this, loop: true });
-        this.time.addEvent({ delay: 15000, callback: this.spawnBlackHole, callbackScope: this, loop: true });
-        this.time.addEvent({ delay: 8000, callback: this.spawnDeathRayWarning, callbackScope: this, loop: true });
+        this.time.addEvent({ delay: 3000, callback: this.spawnMeteorWithWarning, callbackScope: this, loop: true });
+        this.time.addEvent({ delay: 18000, callback: this.spawnBlackHole, callbackScope: this, loop: true });
+        this.time.addEvent({ delay: 10000, callback: this.spawnCreature, callbackScope: this, loop: true });
 
         // Hull sync
         this.game.events.on('GET_HULL', () => this.game.events.emit('HULL_UPDATE', this.hullHealth));
 
-        // Ship variation timer (cycle through ship sprites)
+        // === ANIMATIONS ===
+        this.anims.create({
+            key: 'meteor_anim',
+            frames: [{ key: 'meteor1' }, { key: 'meteor2' }, { key: 'meteor3' }, { key: 'meteor4' }],
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'creature_anim',
+            frames: [{ key: 'creature1' }, { key: 'creature2' }],
+            frameRate: 4,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'deathray_anim',
+            frames: [{ key: 'deathray1' }, { key: 'deathray2' }, { key: 'deathray3' }, { key: 'deathray4' }],
+            frameRate: 12,
+            repeat: -1
+        });
+
+        // Ship animation
         this.time.addEvent({
-            delay: 200,
+            delay: 180,
             callback: () => {
                 if (this.isGrabbing) {
                     this.currentShipFrame = (this.currentShipFrame % 5) + 1;
@@ -124,6 +147,48 @@ export class Strategic extends Phaser.Scene {
         this.stars.forEach(star => {
             star.y += (star as any).speed;
             if (star.y > vh) { star.y = 0; star.x = Phaser.Math.Between(0, vw); }
+        });
+
+        // Reset speed multiplier (black holes will modify it)
+        this.shipSpeedMultiplier = 1;
+
+        // === BLACK HOLE GRAVITY WITH RINGS ===
+        this.blackHoles.getChildren().forEach((holeContainer: any) => {
+            const hole = holeContainer;
+            const holeX = hole.x;
+            const holeY = hole.y;
+            const dx = holeX - this.ship.x;
+            const dy = holeY - this.ship.y;
+            const dist = Phaser.Math.Distance.Between(this.ship.x, this.ship.y, holeX, holeY);
+
+            // Ring zones (slightly smaller as requested: 100, 70, 40)
+            if (dist < 100) {
+                // In outer ring - slight slowdown
+                this.shipSpeedMultiplier *= 0.7;
+                if (dist < 70) {
+                    // In middle ring - more slowdown + pull
+                    this.shipSpeedMultiplier *= 0.5;
+                    const pullStrength = 1.0;
+                    if (!this.isGrabbing) {
+                        this.shipTarget.x += (dx / dist) * pullStrength;
+                        this.shipTarget.y += (dy / dist) * pullStrength;
+                    }
+                    if (dist < 40) {
+                        // In core - maximum effect
+                        this.shipSpeedMultiplier *= 0.3;
+                        const corePull = 1.8;
+                        if (!this.isGrabbing) {
+                            this.shipTarget.x += (dx / dist) * corePull;
+                            this.shipTarget.y += (dy / dist) * corePull;
+                        }
+                        this.takeDamage(0.3);
+                    }
+                }
+            }
+
+            hole.rotation += 0.008;
+            hole.life -= 1;
+            if (hole.life <= 0) hole.destroy();
         });
 
         // Hand Tracking
@@ -149,73 +214,53 @@ export class Strategic extends Phaser.Scene {
             }
         }
 
-        // Ship Movement
-        const lerpFactor = this.isGrabbing ? 0.18 : 0.015;
+        // Ship Movement (affected by speed multiplier)
+        const baseLerp = this.isGrabbing ? 0.18 : 0.015;
+        const lerpFactor = baseLerp * this.shipSpeedMultiplier;
         this.ship.x = Phaser.Math.Linear(this.ship.x, this.shipTarget.x, lerpFactor);
         this.ship.y = Phaser.Math.Linear(this.ship.y, this.shipTarget.y, lerpFactor);
 
-        // Ship rotation towards movement
-        const dx = this.shipTarget.x - this.ship.x;
-        const dy = this.shipTarget.y - this.ship.y;
-        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-            this.ship.rotation = Math.atan2(dy, dx) + Math.PI / 2;
+        // Ship rotation
+        const moveDx = this.shipTarget.x - this.ship.x;
+        const moveDy = this.shipTarget.y - this.ship.y;
+        if (Math.abs(moveDx) > 2 || Math.abs(moveDy) > 2) {
+            this.ship.rotation = Math.atan2(moveDy, moveDx) + Math.PI / 2;
         }
 
-        // Asteroid Movement
-        this.asteroids.getChildren().forEach((asteroid: any) => {
-            asteroid.x += asteroid.vx;
-            asteroid.y += asteroid.vy;
-            asteroid.rotation += asteroid.spin;
+        // Meteor Movement (Top to Down only as requested)
+        this.meteors.getChildren().forEach((meteor: any) => {
+            meteor.y += meteor.vy;
+            // No rotation or horizontal movement as requested for vertical sprites
+            meteor.rotation = 0;
 
-            if (asteroid.x < -80 || asteroid.x > vw + 80 || asteroid.y < -80 || asteroid.y > vh + 80) {
-                asteroid.destroy();
+            if (meteor.x < -100 || meteor.x > vw + 100 || meteor.y < -100 || meteor.y > vh + 100) {
+                meteor.destroy();
             }
 
-            const dist = Phaser.Math.Distance.Between(this.ship.x, this.ship.y, asteroid.x, asteroid.y);
-            if (dist < 35) {
-                this.takeDamage(20);
-                this.createImpact(asteroid.x, asteroid.y);
-                asteroid.destroy();
+            const dist = Phaser.Math.Distance.Between(this.ship.x, this.ship.y, meteor.x, meteor.y);
+            const hitRadius = 20 * meteor.scaleX + 15;
+            if (dist < hitRadius) {
+                this.takeDamage(18);
+                this.createImpact(meteor.x, meteor.y);
+                meteor.destroy();
             }
-        });
-
-        // Black Hole Gravity (using blackhole sprite)
-        this.blackHoles.getChildren().forEach((hole: any) => {
-            const dx = hole.x - this.ship.x;
-            const dy = hole.y - this.ship.y;
-            const dist = Math.max(Phaser.Math.Distance.Between(this.ship.x, this.ship.y, hole.x, hole.y), 50);
-
-            const pull = Math.min(500 / (dist * dist), 2);
-            if (!this.isGrabbing) {
-                this.shipTarget.x += (dx / dist) * pull;
-                this.shipTarget.y += (dy / dist) * pull;
-            }
-
-            if (dist < 60) {
-                this.takeDamage(0.4);
-                hole.setTint(0xff4444);
-            } else {
-                hole.clearTint();
-            }
-
-            hole.rotation += 0.01;
-            hole.life -= 1;
-            if (hole.life <= 0) hole.destroy();
         });
 
         // Death Ray Collision
         this.deathRays.getChildren().forEach((ray: any) => {
+            if (!ray.active) return;
             const shipX = this.ship.x;
             const shipY = this.ship.y;
 
+            // Check if ship is in ray path
             if (ray.isHorizontal) {
-                if (Math.abs(shipY - ray.y) < 25 && shipX > Math.min(ray.x1, ray.x2) && shipX < Math.max(ray.x1, ray.x2)) {
-                    this.takeDamage(25);
+                if (Math.abs(shipY - ray.rayY) < 30) {
+                    this.takeDamage(30);
                     ray.destroy();
                 }
             } else {
-                if (Math.abs(shipX - ray.x) < 25 && shipY > Math.min(ray.y1, ray.y2) && shipY < Math.max(ray.y1, ray.y2)) {
-                    this.takeDamage(25);
+                if (Math.abs(shipX - ray.rayX) < 30) {
+                    this.takeDamage(30);
                     ray.destroy();
                 }
             }
@@ -226,55 +271,46 @@ export class Strategic extends Phaser.Scene {
         this.shipTarget.y = Phaser.Math.Clamp(this.shipTarget.y, 30, vh - 30);
     }
 
-    private spawnAsteroidWithWarning() {
+    private spawnMeteorWithWarning() {
         if (this.isGameOver) return;
         const vw = this.scale.width / 2;
-        const vh = this.scale.height;
 
-        const edge = Phaser.Math.Between(0, 3);
-        let x = 0, y = 0, vx = 0, vy = 0, warningX = 0, warningY = 0;
-        const speed = Phaser.Math.FloatBetween(5, 8);
+        // Meteors only from Top edge as requested
+        const x = Phaser.Math.Between(50, vw - 50);
+        const y = -80;
+        const vy = Phaser.Math.FloatBetween(4, 7);
+        const warningX = x;
+        const warningY = 30;
 
-        switch (edge) {
-            case 0: x = Phaser.Math.Between(50, vw - 50); y = -50; vx = Phaser.Math.FloatBetween(-1, 1); vy = speed; warningX = x; warningY = 25; break;
-            case 1: x = vw + 50; y = Phaser.Math.Between(50, vh - 50); vx = -speed; vy = Phaser.Math.FloatBetween(-1, 1); warningX = vw - 35; warningY = y; break;
-            case 2: x = Phaser.Math.Between(50, vw - 50); y = vh + 50; vx = Phaser.Math.FloatBetween(-1, 1); vy = -speed; warningX = x; warningY = vh - 25; break;
-            case 3: x = -50; y = Phaser.Math.Between(50, vh - 50); vx = speed; vy = Phaser.Math.FloatBetween(-1, 1); warningX = 35; warningY = y; break;
-        }
-
-        const warning = this.add.text(warningX, warningY, '⚠', { fontSize: '20px', color: '#ff4444' }).setOrigin(0.5);
+        const warning = this.add.text(warningX, warningY, '⚠', { fontSize: '24px', color: '#ff6644' }).setOrigin(0.5);
         this.warnings.add(warning);
 
         this.tweens.add({
             targets: warning,
             alpha: 0,
-            scale: 1.5,
+            scale: 1.6,
             duration: 700,
             onComplete: () => {
                 warning.destroy();
-                this.spawnAsteroid(x, y, vx, vy);
+                this.spawnMeteor(x, y, vy);
             }
         });
     }
 
-    private spawnAsteroid(x: number, y: number, vx: number, vy: number) {
+    private spawnMeteor(x: number, y: number, vy: number) {
         if (this.isGameOver) return;
 
-        const size = Phaser.Math.Between(25, 45);
-        const points: number[] = [];
-        const numPoints = Phaser.Math.Between(6, 8);
-        for (let i = 0; i < numPoints; i++) {
-            const angle = (i / numPoints) * Math.PI * 2;
-            const r = size * Phaser.Math.FloatBetween(0.6, 1);
-            points.push(Math.cos(angle) * r, Math.sin(angle) * r);
-        }
+        const meteor = this.add.sprite(x, y, 'meteor1');
+        meteor.play('meteor_anim');
 
-        const asteroid = this.add.polygon(x, y, points, 0x776655);
-        asteroid.setStrokeStyle(3, 0xccaa88);
-        (asteroid as any).vx = vx;
-        (asteroid as any).vy = vy;
-        (asteroid as any).spin = Phaser.Math.FloatBetween(-0.04, 0.04);
-        this.asteroids.add(asteroid);
+        // Random size (small, medium, large)
+        const sizeCategory = Phaser.Math.Between(0, 2);
+        const scales = [0.12, 0.18, 0.25];
+        meteor.setScale(scales[sizeCategory]);
+
+        (meteor as any).vy = vy * (1 + sizeCategory * 0.15);
+        meteor.setDepth(5);
+        this.meteors.add(meteor);
     }
 
     private spawnBlackHole() {
@@ -285,81 +321,120 @@ export class Strategic extends Phaser.Scene {
         const x = Phaser.Math.Between(100, vw - 100);
         const y = Phaser.Math.Between(100, vh - 100);
 
-        // Use blackhole sprite
-        const hole = this.add.sprite(x, y, 'blackhole');
-        hole.setScale(0.2);
-        hole.setAlpha(0.8);
-        (hole as any).life = 600;
-        this.blackHoles.add(hole);
+        // Create container for black hole + rings
+        const holeContainer = this.add.container(x, y);
+
+        // Purple rings (smaller as requested: 100, 70, 40)
+        const ring3 = this.add.circle(0, 0, 100).setStrokeStyle(2, 0x8844cc, 0.25);
+        const ring2 = this.add.circle(0, 0, 70).setStrokeStyle(3, 0xaa55ee, 0.35);
+        const ring1 = this.add.circle(0, 0, 40).setStrokeStyle(4, 0xcc66ff, 0.45);
+        holeContainer.add([ring3, ring2, ring1]);
+
+        // Black hole core (slightly bigger core sprite as requested)
+        const core = this.add.sprite(0, 0, 'blackhole');
+        core.setScale(0.18);
+        holeContainer.add(core);
+
+        (holeContainer as any).life = 800;
+        holeContainer.setDepth(3);
+        this.blackHoles.add(holeContainer);
 
         // Spawn animation
+        holeContainer.setScale(0);
         this.tweens.add({
-            targets: hole,
-            scale: 0.35,
-            duration: 1000,
-            ease: 'Bounce'
+            targets: holeContainer,
+            scale: 1,
+            duration: 800,
+            ease: 'Back.easeOut'
         });
     }
 
-    private spawnDeathRayWarning() {
+    private spawnCreature() {
         if (this.isGameOver) return;
         const vw = this.scale.width / 2;
         const vh = this.scale.height;
 
-        const isHorizontal = Math.random() > 0.5;
-        let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+        // Creatures spawn ONLY on Left/Right corners as requested
+        const side = Phaser.Math.Between(0, 1); // 0 = Left, 1 = Right
+        const x = side === 0 ? -60 : vw + 60;
+        const y = Phaser.Math.Between(100, vh - 100);
 
-        if (isHorizontal) {
-            y1 = y2 = Phaser.Math.Between(80, vh - 80);
-            x1 = 0; x2 = vw;
-        } else {
-            x1 = x2 = Phaser.Math.Between(80, vw - 80);
-            y1 = 0; y2 = vh;
-        }
+        const creature = this.add.sprite(x, y, 'creature1');
+        creature.play('creature_anim');
+        creature.setScale(0.2);
+        creature.setDepth(8);
 
-        const warningLine = this.add.line(0, 0, x1, y1, x2, y2, 0xff2222, 0.3);
-        warningLine.setLineWidth(4);
-        this.warnings.add(warningLine);
+        const targetX = side === 0 ? 55 : vw - 55;
+        const rayY = y;
 
         this.tweens.add({
-            targets: warningLine,
-            alpha: { from: 0.5, to: 0.1 },
-            duration: 120,
+            targets: creature,
+            x: targetX,
+            duration: 800,
+            ease: 'Power2',
+            onComplete: () => {
+                this.showDeathRayWarning(creature, true, rayY, vw, vh);
+            }
+        });
+
+        this.creatures.add(creature);
+    }
+
+    private showDeathRayWarning(creature: Phaser.GameObjects.Sprite, isHorizontal: boolean, rayPos: number, vw: number, vh: number) {
+        // Create visible red warning zone
+        let warningZone: Phaser.GameObjects.Rectangle;
+
+        if (isHorizontal) {
+            warningZone = this.add.rectangle(vw / 2, rayPos, vw, 50, 0xff0000, 0.15);
+        } else {
+            warningZone = this.add.rectangle(rayPos, vh / 2, 50, vh, 0xff0000, 0.15);
+        }
+        warningZone.setStrokeStyle(2, 0xff0000, 0.5);
+        this.warnings.add(warningZone);
+
+        // Blink the warning
+        this.tweens.add({
+            targets: warningZone,
+            alpha: { from: 0.3, to: 0.05 },
+            duration: 150,
             yoyo: true,
             repeat: 6,
             onComplete: () => {
-                warningLine.destroy();
-                this.fireDeathRay(x1, y1, x2, y2, isHorizontal);
+                warningZone.destroy();
+                this.fireDeathRay(creature, isHorizontal, rayPos, vw, vh);
             }
         });
     }
 
-    private fireDeathRay(x1: number, y1: number, x2: number, y2: number, isHorizontal: boolean) {
-        if (this.isGameOver) return;
+    private fireDeathRay(creature: Phaser.GameObjects.Sprite, isHorizontal: boolean, rayPos: number, vw: number, vh: number) {
+        if (this.isGameOver || !creature.active) return;
 
-        // Use deathray sprite rotated appropriately
-        const rayNum = Phaser.Math.Between(1, 3);
-        const midX = (x1 + x2) / 2;
-        const midY = (y1 + y2) / 2;
+        const ray = this.add.sprite(vw / 2, rayPos, 'deathray1');
+        ray.play('deathray_anim');
+        ray.setDisplaySize(vw, 45);
 
-        const ray = this.add.sprite(midX, midY, `deathray${rayNum}`);
-        ray.setAlpha(0.9);
-
-        if (isHorizontal) {
-            ray.setDisplaySize(this.scale.width / 2, 40);
-            ray.setRotation(0);
-        } else {
-            ray.setDisplaySize(40, this.scale.height);
-            ray.setRotation(0);
-        }
-
-        (ray as any).x1 = x1; (ray as any).y1 = y1;
-        (ray as any).x2 = x2; (ray as any).y2 = y2;
+        ray.setAlpha(0.95);
+        ray.setDepth(7);
         (ray as any).isHorizontal = isHorizontal;
+        (ray as any).rayX = rayPos;
+        (ray as any).rayY = rayPos;
         this.deathRays.add(ray);
 
-        this.cameras.main.flash(80, 255, 80, 80);
-        this.time.delayedCall(250, () => ray.destroy());
+        this.cameras.main.flash(100, 255, 100, 100);
+
+        // Remove ray and creature after firing
+        this.time.delayedCall(300, () => {
+            ray.destroy();
+            // Creature retreats
+            this.tweens.add({
+                targets: creature,
+                alpha: 0,
+                x: creature.x + (isHorizontal ? -80 : 0),
+                y: creature.y + (isHorizontal ? 0 : -80),
+                duration: 400,
+                onComplete: () => creature.destroy()
+            });
+        });
     }
 
     private takeDamage(amount: number) {
@@ -383,10 +458,10 @@ export class Strategic extends Phaser.Scene {
             const angle = (i / 6) * Math.PI * 2;
             this.tweens.add({
                 targets: p,
-                x: x + Math.cos(angle) * 60,
-                y: y + Math.sin(angle) * 60,
+                x: x + Math.cos(angle) * 50,
+                y: y + Math.sin(angle) * 50,
                 alpha: 0,
-                duration: 200,
+                duration: 180,
                 onComplete: () => p.destroy()
             });
         }

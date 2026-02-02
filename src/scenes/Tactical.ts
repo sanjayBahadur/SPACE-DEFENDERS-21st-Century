@@ -63,6 +63,12 @@ export class Tactical extends Phaser.Scene {
             this.stars.push(star);
         }
 
+        // === PANEL BACKGROUND (PannelV2) ===
+        const panelBg = this.add.image(vw / 2, vh / 2, 'pannelV2');
+        panelBg.setDisplaySize(vw, vh);
+        panelBg.setAlpha(0.15);
+        panelBg.setDepth(0);
+
         // === COCKPIT FRAME (Immersive edges) ===
         this.cockpitFrame = this.add.graphics();
         this.drawCockpitFrame(vw, vh);
@@ -276,7 +282,7 @@ export class Tactical extends Phaser.Scene {
         // Use enemy sprite
         const enemyType = Math.random() > 0.5 ? 'enemyV1' : 'enemyV2';
         const enemy = this.add.sprite(x, y, enemyType);
-        enemy.setScale(0.12);
+        enemy.setScale(0.18);
         enemy.setDepth(5);
         (enemy as any).driftOffset = Math.random() * 100;
         this.enemies.add(enemy);
@@ -286,7 +292,7 @@ export class Tactical extends Phaser.Scene {
         this.tweens.add({
             targets: enemy,
             alpha: 1,
-            scale: 0.15,
+            scale: 0.22,
             duration: 400,
             ease: 'Back.easeOut'
         });
