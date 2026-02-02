@@ -303,27 +303,26 @@ export class HandTracker {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        // Convert normalized coords to canvas coords
         const pts = landmarks.map(lm => ({
             x: lm.x * w,
             y: lm.y * h
         }));
 
-        // Hand connections (MediaPipe order)
+        // Hand connections
         const connections = [
-            [0, 1], [1, 2], [2, 3], [3, 4],       // Thumb
-            [0, 5], [5, 6], [6, 7], [7, 8],       // Index
-            [0, 9], [9, 10], [10, 11], [11, 12],  // Middle
-            [0, 13], [13, 14], [14, 15], [15, 16], // Ring
-            [0, 17], [17, 18], [18, 19], [19, 20], // Pinky
-            [5, 9], [9, 13], [13, 17], [0, 17]    // Palm
+            [0, 1], [1, 2], [2, 3], [3, 4],
+            [0, 5], [5, 6], [6, 7], [7, 8],
+            [0, 9], [9, 10], [10, 11], [11, 12],
+            [0, 13], [13, 14], [14, 15], [15, 16],
+            [0, 17], [17, 18], [18, 19], [19, 20],
+            [5, 9], [9, 13], [13, 17], [0, 17]
         ];
 
-        // Draw connections as glowing lines
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeStyle = 'rgba(100, 200, 255, 0.8)';
-        this.ctx.shadowColor = '#44ddff';
-        this.ctx.shadowBlur = 10;
+        // Transparent mesh lines
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeStyle = 'rgba(100, 180, 255, 0.35)';
+        this.ctx.shadowColor = 'rgba(68, 200, 255, 0.3)';
+        this.ctx.shadowBlur = 4;
 
         for (const [a, b] of connections) {
             this.ctx.beginPath();
@@ -332,26 +331,25 @@ export class HandTracker {
             this.ctx.stroke();
         }
 
-        // Draw joints as small circles
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        this.ctx.shadowBlur = 15;
+        // Ghost joints
+        this.ctx.fillStyle = 'rgba(200, 220, 255, 0.25)';
+        this.ctx.shadowBlur = 6;
         for (const pt of pts) {
             this.ctx.beginPath();
-            this.ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+            this.ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
             this.ctx.fill();
         }
 
-        // Draw fingertip highlights (tips are indices 4, 8, 12, 16, 20)
+        // Soft fingertip highlights
         const tips = [4, 8, 12, 16, 20];
-        this.ctx.fillStyle = 'rgba(68, 221, 255, 1)';
-        this.ctx.shadowBlur = 20;
+        this.ctx.fillStyle = 'rgba(100, 200, 255, 0.5)';
+        this.ctx.shadowBlur = 8;
         for (const i of tips) {
             this.ctx.beginPath();
-            this.ctx.arc(pts[i].x, pts[i].y, 6, 0, Math.PI * 2);
+            this.ctx.arc(pts[i].x, pts[i].y, 5, 0, Math.PI * 2);
             this.ctx.fill();
         }
 
-        // Reset shadow
         this.ctx.shadowBlur = 0;
     }
 }
