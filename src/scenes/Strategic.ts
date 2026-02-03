@@ -286,7 +286,22 @@ export class Strategic extends Phaser.Scene {
             }
 
             // HITBOX IMPROVEMENT: Use bounds overlap instead of center distance
-            if (Phaser.Geom.Intersects.RectangleToRectangle(this.ship.getBounds(), meteor.getBounds())) {
+            // Create shrunk bounds for tighter hitboxes (70% size)
+            const shipBounds = this.ship.getBounds();
+            const meteorBounds = meteor.getBounds();
+
+            const shrink = (rect: Phaser.Geom.Rectangle, factor: number) => {
+                const w = rect.width * factor;
+                const h = rect.height * factor;
+                const cx = rect.centerX;
+                const cy = rect.centerY;
+                return new Phaser.Geom.Rectangle(cx - w / 2, cy - h / 2, w, h);
+            };
+
+            if (Phaser.Geom.Intersects.RectangleToRectangle(
+                shrink(shipBounds, 0.7),
+                shrink(meteorBounds, 0.7)
+            )) {
                 this.takeDamage(18);
                 this.createImpact(meteor.x, meteor.y);
                 meteor.destroy();
@@ -300,7 +315,23 @@ export class Strategic extends Phaser.Scene {
             const shipY = this.ship.y;
 
             // HITBOX IMPROVEMENT: Use bounds overlap for beam collision
-            if (Phaser.Geom.Intersects.RectangleToRectangle(this.ship.getBounds(), ray.getBounds())) {
+            // Tighter bounds for ray as well
+            const shipBounds = this.ship.getBounds();
+            const rayBounds = ray.getBounds();
+
+            // Inline shrink helper (same as above, avoiding class pollution for now)
+            const shrink = (rect: Phaser.Geom.Rectangle, factor: number) => {
+                const w = rect.width * factor;
+                const h = rect.height * factor;
+                const cx = rect.centerX;
+                const cy = rect.centerY;
+                return new Phaser.Geom.Rectangle(cx - w / 2, cy - h / 2, w, h);
+            };
+
+            if (Phaser.Geom.Intersects.RectangleToRectangle(
+                shrink(shipBounds, 0.7),
+                shrink(rayBounds, 0.6)
+            )) {
                 this.takeDamage(30);
                 ray.destroy();
             }

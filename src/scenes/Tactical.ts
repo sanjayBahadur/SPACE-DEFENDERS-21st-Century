@@ -283,6 +283,14 @@ export class Tactical extends Phaser.Scene {
             this.lockBracket.y = Phaser.Math.Linear(this.lockBracket.y, (nearestTarget as any).y, 0.25);
             const isMissile = this.missiles.contains(nearestTarget);
             this.lockBracket.setScale(isMissile ? 0.7 : 1);
+
+            // MAGNETIC AUTO-AIM
+            // Snap the crosshair target to the enemy if we have a lock
+            // We blend the magnetic position with the raw input for a "sticky" feel
+            const magnetStrength = 0.6; // 60% pull towards enemy
+            this.crosshairTarget.x = Phaser.Math.Linear(this.crosshairTarget.x, (nearestTarget as any).x, magnetStrength);
+            this.crosshairTarget.y = Phaser.Math.Linear(this.crosshairTarget.y, (nearestTarget as any).y, magnetStrength);
+
         } else {
             this.lockStatusText.setText('SCANNING...').setColor('#ff4444');
             this.lockBracket.setVisible(false);
@@ -488,7 +496,7 @@ export class Tactical extends Phaser.Scene {
         }
 
         // Fallback manual
-        const hitRadius = 65;
+        const hitRadius = 30; // Reduced from 65 for tighter manual accuracy (relies on magnet for ease)
         const cx = this.crosshair.x;
         const cy = this.crosshair.y;
         let hit = false;
