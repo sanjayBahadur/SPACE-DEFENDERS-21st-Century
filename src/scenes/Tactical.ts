@@ -161,6 +161,15 @@ export class Tactical extends Phaser.Scene {
 
         // FIRE event
         this.game.events.on('FIRE', this.handleFire, this);
+
+        // MOUSE INPUT
+        this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+            this.crosshairTarget.set(pointer.x, pointer.y);
+        });
+
+        this.input.on('pointerdown', () => {
+            this.game.events.emit('FIRE');
+        });
     }
 
     private drawCockpitFrame(vw: number, vh: number) {
@@ -230,6 +239,15 @@ export class Tactical extends Phaser.Scene {
             } else {
                 this.debugText.setText('NO SIG');
             }
+        }
+
+        // Mouse Fallback (Poll continuously)
+        const pointer = this.input.activePointer;
+        // Check if pointer is in the right half of the screen (Tactical Panel)
+        if (pointer.x > this.scale.width / 2) {
+            // Convert to Camera space
+            const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+            this.crosshairTarget.set(worldPoint.x, worldPoint.y);
         }
 
         // Aim Assist

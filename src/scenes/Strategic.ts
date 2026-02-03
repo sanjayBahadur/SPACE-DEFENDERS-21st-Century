@@ -19,6 +19,13 @@ export class Strategic extends Phaser.Scene {
     // State
     private hullHealth: number = 100;
     private isGameOver: boolean = false;
+    private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+    private wasd!: {
+        up: Phaser.Input.Keyboard.Key;
+        down: Phaser.Input.Keyboard.Key;
+        left: Phaser.Input.Keyboard.Key;
+        right: Phaser.Input.Keyboard.Key;
+    };
 
     // HUD
     private hullBar!: Phaser.GameObjects.Rectangle;
@@ -149,6 +156,15 @@ export class Strategic extends Phaser.Scene {
             callbackScope: this,
             loop: true
         });
+
+        // Controls
+        this.cursors = this.input.keyboard!.createCursorKeys();
+        this.wasd = this.input.keyboard!.addKeys({
+            up: Phaser.Input.Keyboard.KeyCodes.W,
+            down: Phaser.Input.Keyboard.KeyCodes.S,
+            left: Phaser.Input.Keyboard.KeyCodes.A,
+            right: Phaser.Input.Keyboard.KeyCodes.D
+        }) as any;
     }
 
     update(_time: number, _delta: number) {
@@ -226,6 +242,24 @@ export class Strategic extends Phaser.Scene {
             } else {
                 this.statusText.setText('NO SIGNAL').setColor('#ff4444');
             }
+        }
+
+        // Keyboard Fallback
+        const speed = 15; // Increased speed (was 7 * multiplier, now constant fast base)
+        let isUsingKeys = false;
+
+        if (this.cursors.left.isDown || this.wasd.left.isDown) { this.shipTarget.x -= speed; isUsingKeys = true; }
+        if (this.cursors.right.isDown || this.wasd.right.isDown) { this.shipTarget.x += speed; isUsingKeys = true; }
+        if (this.cursors.up.isDown || this.wasd.up.isDown) { this.shipTarget.y -= speed; isUsingKeys = true; }
+        if (this.cursors.down.isDown || this.wasd.down.isDown) { this.shipTarget.y += speed; isUsingKeys = true; }
+
+        // Logic to enable fast responsiveness when using keys
+        if (isUsingKeys) {
+            this.isGrabbing = true; // Use the faster "Grab" lerp
+            this.statusText.setText('MANUAL PILOT').setColor('#44ff44');
+        } else if (tracker && !this.isGrabbing) {
+            // If not using keys and not grabbing with hand, ensure we reset if needed
+            // (Logic handled in Hand Tracking section usually, so this is just a safe fallback)
         }
 
         // Ship Movement (affected by speed multiplier)
