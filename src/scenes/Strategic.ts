@@ -123,6 +123,20 @@ export class Strategic extends Phaser.Scene {
             repeat: -1
         });
 
+        this.anims.create({
+            key: 'explosionV1',
+            frames: [{ key: 'explosionV1_1' }, { key: 'explosionV1_2' }, { key: 'explosionV1_3' }, { key: 'explosionV1_4' }],
+            frameRate: 15,
+            repeat: 0
+        });
+
+        this.anims.create({
+            key: 'explosionV2',
+            frames: [{ key: 'explosionV2_1' }, { key: 'explosionV2_2' }, { key: 'explosionV2_3' }, { key: 'explosionV2_4' }],
+            frameRate: 15,
+            repeat: 0
+        });
+
         // Ship animation
         this.time.addEvent({
             delay: 180,
@@ -237,9 +251,8 @@ export class Strategic extends Phaser.Scene {
                 meteor.destroy();
             }
 
-            const dist = Phaser.Math.Distance.Between(this.ship.x, this.ship.y, meteor.x, meteor.y);
-            const hitRadius = 20 * meteor.scaleX + 15;
-            if (dist < hitRadius) {
+            // HITBOX IMPROVEMENT: Use bounds overlap instead of center distance
+            if (Phaser.Geom.Intersects.RectangleToRectangle(this.ship.getBounds(), meteor.getBounds())) {
                 this.takeDamage(18);
                 this.createImpact(meteor.x, meteor.y);
                 meteor.destroy();
@@ -252,17 +265,10 @@ export class Strategic extends Phaser.Scene {
             const shipX = this.ship.x;
             const shipY = this.ship.y;
 
-            // Check if ship is in ray path
-            if (ray.isHorizontal) {
-                if (Math.abs(shipY - ray.rayY) < 30) {
-                    this.takeDamage(30);
-                    ray.destroy();
-                }
-            } else {
-                if (Math.abs(shipX - ray.rayX) < 30) {
-                    this.takeDamage(30);
-                    ray.destroy();
-                }
+            // HITBOX IMPROVEMENT: Use bounds overlap for beam collision
+            if (Phaser.Geom.Intersects.RectangleToRectangle(this.ship.getBounds(), ray.getBounds())) {
+                this.takeDamage(30);
+                ray.destroy();
             }
         });
 
@@ -401,12 +407,12 @@ export class Strategic extends Phaser.Scene {
             repeat: 6,
             onComplete: () => {
                 warningZone.destroy();
-                this.fireDeathRay(creature, isHorizontal, rayPos, vw, vh);
+                this.fireDeathRay(creature, isHorizontal, rayPos, vw);
             }
         });
     }
 
-    private fireDeathRay(creature: Phaser.GameObjects.Sprite, isHorizontal: boolean, rayPos: number, vw: number, vh: number) {
+    private fireDeathRay(creature: Phaser.GameObjects.Sprite, isHorizontal: boolean, rayPos: number, vw: number) {
         if (this.isGameOver || !creature.active) return;
 
         const ray = this.add.sprite(vw / 2, rayPos, 'deathray1');
@@ -440,6 +446,15 @@ export class Strategic extends Phaser.Scene {
     private takeDamage(amount: number) {
         this.hullHealth -= amount;
         if (this.hullHealth < 0) this.hullHealth = 0;
+
+        // Visual feedback
+        if (amount > 5) {
+            const anim = Math.random() > 0.5 ? 'explosionV1' : 'explosionV2';
+            const explosion = this.add.sprite(this.ship.x + Phaser.Math.Between(-20, 20), this.ship.y + Phaser.Math.Between(-20, 20), anim);
+            explosion.setScale(0.4); // Scaled down from 0.8
+            explosion.play(anim);
+            explosion.on('animationcomplete', () => explosion.destroy());
+        }
 
         const barWidth = (this.hullHealth / 100) * 120;
         this.hullBar.width = barWidth;

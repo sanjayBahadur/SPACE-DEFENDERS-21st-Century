@@ -129,7 +129,30 @@ export class Tactical extends Phaser.Scene {
         this.crosshair.add(this.add.line(0, 0, 0, 15, 0, 50, 0xff4444, 0.5).setLineWidth(1));
         this.crosshair.setDepth(25);
 
-        // === GROUPS ===
+        // === ANIMATIONS ===
+        this.anims.create({
+            key: 'explosionV1',
+            frames: [{ key: 'explosionV1_1' }, { key: 'explosionV1_2' }, { key: 'explosionV1_3' }, { key: 'explosionV1_4' }],
+            frameRate: 15,
+            repeat: 0
+        });
+        this.anims.create({
+            key: 'explosionV2',
+            frames: [{ key: 'explosionV2_1' }, { key: 'explosionV2_2' }, { key: 'explosionV2_3' }, { key: 'explosionV2_4' }],
+            frameRate: 15,
+            repeat: 0
+        });
+        this.anims.create({
+            key: 'enemyV3_anim',
+            frames: [
+                { key: 'enemyV3_1' }, { key: 'enemyV3_2' },
+                { key: 'enemyV3_3' }, { key: 'enemyV3_4' }
+            ],
+            frameRate: 10,
+            repeat: -1
+        });
+
+        // Entity Groups - Groups were missing from previous edit
         this.enemies = this.add.group();
         this.missiles = this.add.group();
 
@@ -248,9 +271,27 @@ export class Tactical extends Phaser.Scene {
 
         // Enemy Behavior (using sprites)
         this.enemies.getChildren().forEach((enemy: any) => {
-            enemy.x += Math.sin(_time * 0.001 + enemy.driftOffset) * 0.3;
-            enemy.y += Math.cos(_time * 0.0008 + enemy.driftOffset) * 0.2;
-            if (Math.random() < 0.003) this.spawnMissile(enemy.x, enemy.y);
+            if (enemy.texture.key.startsWith('enemyV3')) {
+                // EnemyV3: Spin and Enlarge
+                if (!enemy.isAnimating) {
+                    enemy.rotation += 0.05;
+                    enemy.setScale(enemy.scale + 0.0005);
+                }
+
+                // If it reaches a certain size, fire death ray
+                if (enemy.scale > 0.45 && !enemy.isFiring) {
+                    enemy.isFiring = true;
+                    enemy.isAnimating = true;
+                    enemy.play('enemyV3_anim');
+                    // Stop rotation to show animation clearly
+                    // enemy.rotation does not update when isAnimating is true due to logic above
+                    this.fireEnemyV3Ray(enemy);
+                }
+            } else {
+                enemy.x += Math.sin(_time * 0.001 + enemy.driftOffset) * 0.3;
+                enemy.y += Math.cos(_time * 0.0008 + enemy.driftOffset) * 0.2;
+                if (Math.random() < 0.003) this.spawnMissile(enemy.x, enemy.y);
+            }
         });
 
         // Missile Behavior
@@ -277,14 +318,34 @@ export class Tactical extends Phaser.Scene {
         const vh = this.scale.height;
 
         const x = Phaser.Math.Between(80, vw - 80);
-        const y = Phaser.Math.Between(80, vh * 0.45);
+        const vScale = 0.45; // Depth limit
+        const y = Phaser.Math.Between(80, vh * vScale);
 
-        // Use enemy sprite
-        const enemyType = Math.random() > 0.5 ? 'enemyV1' : 'enemyV2';
+        // Pick enemy type (V1, V2, or V3)
+        const rand = Math.random();
+        let enemyType = 'enemyV1';
+        let isV3 = false;
+
+        if (rand > 0.8) {
+            enemyType = 'enemyV3_0';
+            isV3 = true;
+        } else if (rand > 0.4) {
+            enemyType = 'enemyV2';
+        }
+
         const enemy = this.add.sprite(x, y, enemyType);
-        enemy.setScale(0.18);
         enemy.setDepth(5);
         (enemy as any).driftOffset = Math.random() * 100;
+
+        if (isV3) {
+            enemy.setScale(0.15);
+            enemy.setTexture('enemyV3_0'); // Hold on first frame while growing
+            (enemy as any).isFiring = false;
+            (enemy as any).isAnimating = false;
+        } else {
+            enemy.setScale(0.18);
+        }
+
         this.enemies.add(enemy);
 
         // Entrance animation
@@ -292,12 +353,48 @@ export class Tactical extends Phaser.Scene {
         this.tweens.add({
             targets: enemy,
             alpha: 1,
-            scale: 0.22,
+            scale: isV3 ? 0.2 : 0.22,
             duration: 400,
             ease: 'Back.easeOut'
         });
 
-        this.time.delayedCall(18000, () => { if (enemy.active) enemy.destroy(); });
+        this.time.delayedCall(20000, () => { if (enemy.active) enemy.destroy(); });
+    }
+
+    private fireEnemyV3Ray(enemy: any) {
+        if (!enemy.active) return;
+
+        // Visual warning
+        const warning = this.add.circle(enemy.x, enemy.y, 10, 0xff0000, 0.5);
+        this.tweens.add({
+            targets: warning,
+            scale: 8,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => {
+                warning.destroy();
+                if (!enemy.active) return;
+
+                // Actual ray
+                const ray = this.add.line(0, 0, enemy.x, enemy.y, this.scale.width / 4, this.scale.height / 2, 0xff0000, 0.8);
+                ray.setLineWidth(8);
+
+                this.cameras.main.flash(200, 255, 0, 0);
+                this.cameras.main.shake(300, 0.015);
+                this.takeDamage(); // Direct hit
+
+                this.time.delayedCall(200, () => ray.destroy());
+
+                // Enemy retreats or resets
+                this.tweens.add({
+                    targets: enemy,
+                    alpha: 0,
+                    scale: 0.1,
+                    duration: 1000,
+                    onComplete: () => enemy.destroy()
+                });
+            }
+        });
     }
 
     private spawnMissile(startX: number, startY: number) {
@@ -334,7 +431,7 @@ export class Tactical extends Phaser.Scene {
             const isMissile = this.missiles.contains(target);
 
             this.addScore(isMissile ? 50 : 100);
-            this.createExplosion((target as any).x, (target as any).y, isMissile ? 0xff6600 : 0xffff00);
+            this.createExplosion((target as any).x, (target as any).y, isMissile ? 'explosionV1' : 'explosionV2', isMissile ? 0.3 : 0.45);
             target.destroy();
             this.lockedTarget = null;
             this.cameras.main.shake(40, 0.004);
@@ -352,7 +449,7 @@ export class Tactical extends Phaser.Scene {
             const dist = Phaser.Math.Distance.Between(cx, cy, missile.x, missile.y);
             if (dist < hitRadius + missile.scale * 6) {
                 this.addScore(50);
-                this.createExplosion(missile.x, missile.y, 0xff6600);
+                this.createExplosion(missile.x, missile.y, 'explosionV1', 0.3);
                 missile.destroy();
                 hit = true;
             }
@@ -364,7 +461,7 @@ export class Tactical extends Phaser.Scene {
                 const dist = Phaser.Math.Distance.Between(cx, cy, enemy.x, enemy.y);
                 if (dist < hitRadius + 25) {
                     this.addScore(100);
-                    this.createExplosion(enemy.x, enemy.y, 0xffff00);
+                    this.createExplosion(enemy.x, enemy.y, 'explosionV2', 0.45);
                     enemy.destroy();
                     hit = true;
                 }
@@ -374,21 +471,12 @@ export class Tactical extends Phaser.Scene {
         if (hit) this.cameras.main.shake(35, 0.003);
     }
 
-    private createExplosion(x: number, y: number, color: number) {
-        for (let i = 0; i < 12; i++) {
-            const p = this.add.circle(x, y, Phaser.Math.Between(2, 5), color);
-            const angle = (i / 12) * Math.PI * 2;
-            const speed = Phaser.Math.Between(40, 100);
-            this.tweens.add({
-                targets: p,
-                x: x + Math.cos(angle) * speed,
-                y: y + Math.sin(angle) * speed,
-                alpha: 0,
-                scale: 0.2,
-                duration: 220,
-                onComplete: () => p.destroy()
-            });
-        }
+    private createExplosion(x: number, y: number, animKey: string, scale: number = 0.5) {
+        const explosion = this.add.sprite(x, y, animKey);
+        explosion.setDepth(15);
+        explosion.setScale(scale);
+        explosion.play(animKey);
+        explosion.on('animationcomplete', () => explosion.destroy());
     }
 
     private createImpact(_x: number, _y: number) {
