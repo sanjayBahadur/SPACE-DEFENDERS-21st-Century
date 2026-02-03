@@ -115,6 +115,16 @@ export class Tactical extends Phaser.Scene {
         this.lockBracket.setVisible(false);
         this.lockBracket.setDepth(20);
 
+        // Pulse animation for lock bracket
+        this.tweens.add({
+            targets: this.lockBracket,
+            alpha: { from: 1, to: 0.6 },
+            duration: 800,
+            yoyo: true,
+            repeat: -1
+        });
+        this.lockBracket.setDepth(20);
+
         // === CROSSHAIR ===
         const cx = vw / 2;
         const cy = vh / 2;
@@ -259,41 +269,110 @@ export class Tactical extends Phaser.Scene {
         let nearestTarget: Phaser.GameObjects.GameObject | null = null;
         let nearestDist = Infinity;
 
-        this.missiles.getChildren().forEach((missile: any) => {
-            const dist = Phaser.Math.Distance.Between(this.crosshairTarget.x, this.crosshairTarget.y, missile.x, missile.y);
-            if (dist < this.AIM_ASSIST_RADIUS && dist < nearestDist) {
-                nearestDist = dist;
-                nearestTarget = missile;
-            }
-        });
-
         this.enemies.getChildren().forEach((enemy: any) => {
             const dist = Phaser.Math.Distance.Between(this.crosshairTarget.x, this.crosshairTarget.y, enemy.x, enemy.y);
             if (dist < this.AIM_ASSIST_RADIUS && dist < nearestDist) {
-                nearestDist = dist;
-                nearestTarget = enemy;
+                // Hysteresis: If we already have a lock, only switch if new target is SIGNIFICANTLY closer (e.g. 20px)
+                // This prevents flickering between two close targets
+                if (this.lockedTarget && this.lockedTarget.active) {
+                    const currentDist = Phaser.Math.Distance.Between(this.crosshairTarget.x, this.crosshairTarget.y, (this.lockedTarget as any).x, (this.lockedTarget as any).y);
+                    if (dist < currentDist - 20) {
+                        nearestDist = dist;
+                        nearestTarget = enemy;
+                    }
+                    // Else keep existing lock (it will be re-assigned below if we don't find a better one)
+                    // Actually, we need to preserve the current lock if no better one is found. 
+                    // The standard loop finds the ABSOLUTE closest. 
+                    // To implement hysteresis properly in this loop structure:
+                    // We should bias the distance calculation for the CURRENT locked target.
+                } else {
+                    nearestDist = dist;
+                    nearestTarget = enemy;
+                }
             }
         });
 
+        // Refined Hysteresis Loop Logic
+        // Let's re-run the search cleanly with bias
+        nearestTarget = null;
+        nearestDist = Infinity;
+
+        const candidates = [...this.missiles.getChildren(), ...this.enemies.getChildren()];
+        candidates.forEach((target: any) => {
+            const dist = Phaser.Math.Distance.Between(this.crosshairTarget.x, this.crosshairTarget.y, target.x, target.y);
+
+            // Bias: artificially reduce distance for the currently locked target to make it "stickym"
+            let effectiveDist = dist;
+            if (this.lockedTarget === target) {
+                effectiveDist -= 25; // Sticky bias
+            }
+
+            if (dist < this.AIM_ASSIST_RADIUS && effectiveDist < nearestDist) {
+                nearestDist = effectiveDist;
+                nearestTarget = target;
+            }
+        });
+
+        // State Change Detection
+        if (this.lockedTarget !== nearestTarget) {
+            // New Lock Acquired or Lost
+            if (nearestTarget) {
+                // Play "Snap" animation
+                this.lockBracket.setScale(2.0);
+                this.tweens.add({
+                    targets: this.lockBracket,
+                    scale: this.missiles.contains(nearestTarget) ? 0.7 : 1, // Final scale
+                    duration: 150,
+                    ease: 'Back.easeOut'
+                });
+            }
+        }
+
         this.lockedTarget = nearestTarget;
+
+        // Update Visuals
+        const crosshairDiamond = this.crosshair.getAt(0) as Phaser.GameObjects.Polygon; // Diamond
+        const crosshairDot = this.crosshair.getAt(1) as Phaser.GameObjects.Arc;     // Dot
+
         if (nearestTarget) {
             this.lockStatusText.setText('TARGET\nLOCK ON').setColor('#ff2222');
             this.lockBracket.setVisible(true);
             this.lockBracket.x = Phaser.Math.Linear(this.lockBracket.x, (nearestTarget as any).x, 0.25);
             this.lockBracket.y = Phaser.Math.Linear(this.lockBracket.y, (nearestTarget as any).y, 0.25);
-            const isMissile = this.missiles.contains(nearestTarget);
-            this.lockBracket.setScale(isMissile ? 0.7 : 1);
 
-            // MAGNETIC AUTO-AIM
+            // Sync scale only if not animating snap (check tween? or just let update overwrite it gently? 
+            // The tween above handles the snap. We should probably only LERP position here.
+            // But we need to maintain the correct final scale (0.7 vs 1).
+            // Let's rely on the tween for the snap, and set the target scale for next frames.
+            // Simplify: Just force scale if not tweening, or just let it be. 
+            // For robustness, we can just set it here, but it might override the tween.
+            // Actually, if we just set it here without LERP, it pops.
+            // Let's only set target scale if we are STABLE.
+            // For now, let's assume the tween handles the entry, and we just maintain it.
+            // A simple approach is just setting it every frame.
+            if (!this.tweens.isTweening(this.lockBracket)) {
+                const isMissile = this.missiles.contains(nearestTarget);
+                this.lockBracket.setScale(isMissile ? 0.7 : 1);
+            }
+
+            // Crosshair Color Change (Cyan for lock)
+            crosshairDiamond.setStrokeStyle(2, 0x00ffff, 1);
+            crosshairDot.setFillStyle(0x00ffff);
+
+            // MAGNETIC AUTO-AIM (Tuned)
             // Snap the crosshair target to the enemy if we have a lock
             // We blend the magnetic position with the raw input for a "sticky" feel
-            const magnetStrength = 0.6; // 60% pull towards enemy
+            const magnetStrength = 0.4; // Reduced from 0.6 for smoother manual-assist feel
             this.crosshairTarget.x = Phaser.Math.Linear(this.crosshairTarget.x, (nearestTarget as any).x, magnetStrength);
             this.crosshairTarget.y = Phaser.Math.Linear(this.crosshairTarget.y, (nearestTarget as any).y, magnetStrength);
 
         } else {
             this.lockStatusText.setText('SCANNING...').setColor('#ff4444');
             this.lockBracket.setVisible(false);
+
+            // Revert Crosshair Color (Red)
+            crosshairDiamond.setStrokeStyle(2, 0xff4444, 0.8);
+            crosshairDot.setFillStyle(0xff4444);
         }
 
         // Crosshair LERP
