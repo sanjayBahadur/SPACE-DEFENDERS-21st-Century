@@ -12,7 +12,9 @@ export class Tactical extends Phaser.Scene {
     private shieldLevel: number = 100;
     private score: number = 0;
     private lives: number = 3;
+    private lives: number = 3;
     private isGameOver: boolean = false;
+    private wasPointerDown: boolean = false;
 
     // Entity Groups
     private enemies!: Phaser.GameObjects.Group;
@@ -161,15 +163,6 @@ export class Tactical extends Phaser.Scene {
 
         // FIRE event
         this.game.events.on('FIRE', this.handleFire, this);
-
-        // MOUSE INPUT
-        this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-            this.crosshairTarget.set(pointer.x, pointer.y);
-        });
-
-        this.input.on('pointerdown', () => {
-            this.game.events.emit('FIRE');
-        });
     }
 
     private drawCockpitFrame(vw: number, vh: number) {
@@ -241,13 +234,25 @@ export class Tactical extends Phaser.Scene {
             }
         }
 
-        // Mouse Fallback (Poll continuously)
-        const pointer = this.input.activePointer;
-        // Check if pointer is in the right half of the screen (Tactical Panel)
-        if (pointer.x > this.scale.width / 2) {
-            // Convert to Camera space
-            const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-            this.crosshairTarget.set(worldPoint.x, worldPoint.y);
+        // Mouse Fallback & Priority Logic
+        // Only use mouse if NO hand is actively controlling (indexExtended) or tracking is missing
+        const isHandActive = (tracker && tracker.getHands().gunner && tracker.getHands().gunner.indexExtended);
+
+        if (!isHandActive) {
+            const pointer = this.input.activePointer;
+            // Check if pointer is strictly in the right half (Tactical Panel)
+            if (pointer.x > this.scale.width / 2) {
+                // Convert to Camera space
+                const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                this.crosshairTarget.set(worldPoint.x, worldPoint.y);
+
+                if (pointer.isDown && !this.wasPointerDown) {
+                    this.game.events.emit('FIRE');
+                }
+                this.wasPointerDown = pointer.isDown;
+            } else {
+                this.wasPointerDown = false; // Reset if out of bounds
+            }
         }
 
         // Aim Assist
