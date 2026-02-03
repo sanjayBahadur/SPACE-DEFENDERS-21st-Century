@@ -149,7 +149,7 @@ export class Tactical extends Phaser.Scene {
                 { key: 'enemyV3_3' }, { key: 'enemyV3_4' }
             ],
             frameRate: 10,
-            repeat: -1
+            repeat: 0
         });
 
         // Entity Groups - Groups were missing from previous edit
@@ -269,28 +269,53 @@ export class Tactical extends Phaser.Scene {
         this.crosshair.x = Phaser.Math.Linear(this.crosshair.x, this.crosshairTarget.x, 0.2);
         this.crosshair.y = Phaser.Math.Linear(this.crosshair.y, this.crosshairTarget.y, 0.2);
 
+        // Enemy Separation Logic
+        const enemies = this.enemies.getChildren();
+        for (let i = 0; i < enemies.length; i++) {
+            const e1 = enemies[i] as any;
+            for (let j = i + 1; j < enemies.length; j++) {
+                const e2 = enemies[j] as any;
+                const dist = Phaser.Math.Distance.Between(e1.x, e1.y, e2.x, e2.y);
+                const minSep = 70; // Minimum separation distance
+                if (dist < minSep) {
+                    const angle = Phaser.Math.Angle.Between(e1.x, e1.y, e2.x, e2.y);
+                    const force = 0.5;
+                    e1.x -= Math.cos(angle) * force;
+                    e1.y -= Math.sin(angle) * force;
+                    e2.x += Math.cos(angle) * force;
+                    e2.y += Math.sin(angle) * force;
+                }
+            }
+        }
+
         // Enemy Behavior (using sprites)
         this.enemies.getChildren().forEach((enemy: any) => {
             if (enemy.texture.key.startsWith('enemyV3')) {
-                // EnemyV3: Spin and Enlarge
+                // EnemyV3: Spin and Enlarge (Faster growth)
                 if (!enemy.isAnimating) {
                     enemy.rotation += 0.05;
-                    enemy.setScale(enemy.scale + 0.0005);
+                    enemy.setScale(enemy.scale + 0.002); // Increased from 0.0005
                 }
 
                 // If it reaches a certain size, fire death ray
-                if (enemy.scale > 0.45 && !enemy.isFiring) {
+                if (enemy.scale > 0.35 && !enemy.isFiring) { // Reduced from 0.45
                     enemy.isFiring = true;
                     enemy.isAnimating = true;
                     enemy.play('enemyV3_anim');
-                    // Stop rotation to show animation clearly
-                    // enemy.rotation does not update when isAnimating is true due to logic above
-                    this.fireEnemyV3Ray(enemy);
+                    // Wait for animation to complete before firing ray
+                    enemy.once('animationcomplete', () => {
+                        this.fireEnemyV3Ray(enemy);
+                    });
                 }
             } else {
                 enemy.x += Math.sin(_time * 0.001 + enemy.driftOffset) * 0.3;
                 enemy.y += Math.cos(_time * 0.0008 + enemy.driftOffset) * 0.2;
-                if (Math.random() < 0.003) this.spawnMissile(enemy.x, enemy.y);
+
+                // Pass missile type based on enemy texture
+                if (Math.random() < 0.003) {
+                    const isV2 = enemy.texture.key === 'enemyV2';
+                    this.spawnMissile(enemy.x, enemy.y, isV2 ? 'V2' : 'V1');
+                }
             }
         });
 
@@ -318,7 +343,7 @@ export class Tactical extends Phaser.Scene {
         const vh = this.scale.height;
 
         const x = Phaser.Math.Between(80, vw - 80);
-        const vScale = 0.45; // Depth limit
+        const vScale = 0.35; // Adjusted depth limit to match new size cap
         const y = Phaser.Math.Between(80, vh * vScale);
 
         // Pick enemy type (V1, V2, or V3)
@@ -370,51 +395,52 @@ export class Tactical extends Phaser.Scene {
             targets: warning,
             scale: 8,
             alpha: 0,
-            duration: 500,
+            duration: 300, // Faster warning (was 500)
             onComplete: () => {
                 warning.destroy();
                 if (!enemy.active) return;
-
-                // Actual ray
-                const ray = this.add.line(0, 0, enemy.x, enemy.y, this.scale.width / 4, this.scale.height / 2, 0xff0000, 0.8);
-                ray.setLineWidth(8);
 
                 this.cameras.main.flash(200, 255, 0, 0);
                 this.cameras.main.shake(300, 0.015);
                 this.takeDamage(); // Direct hit
 
-                this.time.delayedCall(200, () => ray.destroy());
-
-                // Enemy retreats or resets
+                // Enemy retreats or resets (Faster despawn)
                 this.tweens.add({
                     targets: enemy,
                     alpha: 0,
                     scale: 0.1,
-                    duration: 1000,
+                    duration: 300, // Faster retreat (was 1000)
                     onComplete: () => enemy.destroy()
                 });
             }
         });
     }
 
-    private spawnMissile(startX: number, startY: number) {
+    private spawnMissile(startX: number, startY: number, type: 'V1' | 'V2' = 'V1') {
         if (this.isGameOver) return;
 
         // Modern missile design (energy orb with trail)
         const missile = this.add.container(startX, startY);
 
+        // Colors based on type
+        // V1 (Orange/Red) vs V2 (Cyan/Blue)
+        const coreColor = type === 'V1' ? 0xff4400 : 0x00ffff;
+        const ringColor = type === 'V1' ? 0xffaa00 : 0x0088ff;
+        const trail1Color = type === 'V1' ? 0xff6600 : 0x00ccff;
+        const trail2Color = type === 'V1' ? 0xff8800 : 0x0044ff;
+
         // Core glow
-        const core = this.add.circle(0, 0, 5, 0xff4400);
+        const core = this.add.circle(0, 0, 5, coreColor);
         core.setAlpha(0.9);
         missile.add(core);
 
         // Outer ring
-        const ring = this.add.circle(0, 0, 8).setStrokeStyle(2, 0xffaa00, 0.6);
+        const ring = this.add.circle(0, 0, 8).setStrokeStyle(2, ringColor, 0.6);
         missile.add(ring);
 
         // Trail particles
-        const trail1 = this.add.circle(-8, 0, 3, 0xff6600, 0.5);
-        const trail2 = this.add.circle(-14, 0, 2, 0xff8800, 0.3);
+        const trail1 = this.add.circle(-8, 0, 3, trail1Color, 0.5);
+        const trail2 = this.add.circle(-14, 0, 2, trail2Color, 0.3);
         missile.add(trail1);
         missile.add(trail2);
 
