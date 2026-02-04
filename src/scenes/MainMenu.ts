@@ -68,29 +68,42 @@ export class MainMenu extends Phaser.Scene {
 
         this.crawlText = this.add.container(width / 2, height + 100);
 
-        const titleStyle = { fontFamily: 'Courier', fontSize: '32px', color: '#ffcc00', fontStyle: 'bold', align: 'center' };
-        const bodyStyle = { fontFamily: 'Courier', fontSize: '24px', color: '#ffcc00', fontStyle: 'bold', align: 'center', wordWrap: { width: 800 } };
+        // Responsive font sizes
+        const titleSize = Math.max(32, width * 0.05); // 5% of width or min 32px
+        const subTitleSize = Math.max(24, width * 0.04);
+        const bodySize = Math.max(34, width * 0.045); // Bigger body text
 
-        const line1 = this.add.text(0, 0, 'Episode XXI', { ...titleStyle, fontSize: '20px' }).setOrigin(0.5);
-        const line2 = this.add.text(0, 40, 'DISNEY HAVE ALL YOUR MONEY', titleStyle).setOrigin(0.5);
+        const titleStyle = { fontFamily: 'Courier', fontSize: `${titleSize}px`, color: '#ffcc00', fontStyle: 'bold', align: 'center' };
+        const bodyStyle = {
+            fontFamily: 'Courier',
+            fontSize: `${bodySize}px`,
+            color: '#ffcc00',
+            fontStyle: 'bold',
+            align: 'justify',
+            wordWrap: { width: width * 0.8 } // 80% width
+        };
+
+        const line1 = this.add.text(0, 0, 'Episode XXI', { ...titleStyle, fontSize: `${subTitleSize}px` }).setOrigin(0.5);
+        const line2 = this.add.text(0, titleSize * 2, 'DISNEY HAVE ALL YOUR MONEY', titleStyle).setOrigin(0.5);
 
         const content = "The evil DISNEY company have purchased Star Wars and now make endless amounts of colourful nonsense as an opiate for the masses. Everybody is mesmerised. Nobody is safe.";
-        const body = this.add.text(0, 150, content, bodyStyle).setOrigin(0.5);
+        const body = this.add.text(0, titleSize * 5, content, bodyStyle).setOrigin(0.5, 0);
 
         this.crawlText.add([line1, line2, body]);
 
-        // Crawl Tween
+        // Crawl Tween with perspective scale
         this.tweens.add({
             targets: this.crawlText,
-            y: -400,
-            duration: 20000,
+            y: -height * 1.5, // Move further up to ensure it clears
+            scale: 0.2, // Shrink as it goes into "distance"
+            duration: 25000, // Slightly slower for readability
             ease: 'Linear',
             onComplete: () => {
                 this.showMenu();
             }
         });
 
-        // Perspective Effect (Simulated by simple scale)
+        // Start big
         this.crawlText.setScale(1);
     }
 

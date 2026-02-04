@@ -19,6 +19,7 @@ export class Strategic extends Phaser.Scene {
     // State
     private hullHealth: number = 100;
     private isGameOver: boolean = false;
+    private lastHandTime: number = 0;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private wasd!: {
         up: Phaser.Input.Keyboard.Key;
@@ -83,6 +84,16 @@ export class Strategic extends Phaser.Scene {
         this.gameOverText = this.add.text(vw / 2, vh / 2, 'HULL BREACH', {
             fontSize: '28px', color: '#ff4444', fontStyle: 'bold'
         }).setOrigin(0.5).setVisible(false);
+
+        // Pause Button
+        const pauseBtn = this.add.text(vw - 20, 20, 'II', {
+            fontFamily: 'Courier', fontSize: '24px', color: '#4488ff', fontStyle: 'bold',
+            backgroundColor: '#001122', padding: { x: 10, y: 5 }
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+
+        pauseBtn.on('pointerdown', () => this.pauseGame());
+        pauseBtn.on('pointerover', () => pauseBtn.setColor('#ffffff'));
+        pauseBtn.on('pointerout', () => pauseBtn.setColor('#4488ff'));
 
         // === SHIP ===
         const cx = vw / 2;
@@ -230,6 +241,12 @@ export class Strategic extends Phaser.Scene {
         if (tracker) {
             const hands = tracker.getHands();
             const pilot = hands.pilot;
+            const gunner = hands.gunner; // Check gunner too
+
+            // Update timestamp if ANY hand is seen
+            if (pilot || gunner) {
+                this.lastHandTime = _time;
+            }
 
             if (pilot) {
                 const targetX = pilot.x * vw;
@@ -245,6 +262,12 @@ export class Strategic extends Phaser.Scene {
                 }
             } else {
                 this.statusText.setText('NO SIGNAL').setColor('#ff4444');
+
+                // Auto-Pause if hands missing for > 1500ms and not using keyboard override
+                // and game is not already over
+                if (_time - this.lastHandTime > 1500 && !this.isGameOver) {
+                    this.pauseGame('HAND_LOST');
+                }
             }
         }
 
@@ -563,8 +586,8 @@ export class Strategic extends Phaser.Scene {
         this.game.events.emit('PILOT_GAME_OVER');
     }
 
-    private pauseGame() {
+    private pauseGame(reason?: string) {
         this.scene.pause();
-        this.scene.launch('PauseScene');
+        this.scene.launch('PauseScene', { reason });
     }
 }

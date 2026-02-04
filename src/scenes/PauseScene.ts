@@ -1,18 +1,31 @@
 import Phaser from 'phaser';
+import { HandTracker } from '../services/HandTracker';
 
 export class PauseScene extends Phaser.Scene {
+    private reason?: string;
+
     constructor() {
         super('PauseScene');
     }
 
-    create() {
+    create(data?: { reason?: string }) {
+        this.reason = data?.reason;
+
         const width = this.scale.width;
         const height = this.scale.height;
 
         // Semi-transparent dark overlay
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
 
-        const title = this.add.text(width / 2, height * 0.3, 'GAME PAUSED', {
+        let titleText = 'GAME PAUSED';
+        let subText = '';
+
+        if (this.reason === 'HAND_LOST') {
+            titleText = 'PILOT DISCONNECTED';
+            subText = 'PLEASE RETURN HANDS TO SENSOR RANGE';
+        }
+
+        const title = this.add.text(width / 2, height * 0.3, titleText, {
             fontFamily: 'Impact',
             fontSize: '56px',
             color: '#ffcc00',
@@ -20,9 +33,17 @@ export class PauseScene extends Phaser.Scene {
             strokeThickness: 6
         }).setOrigin(0.5);
 
+        if (subText) {
+            this.add.text(width / 2, height * 0.4, subText, {
+                fontFamily: 'Courier',
+                fontSize: '24px',
+                color: '#ff4444',
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+        }
+
         const resumeBtn = this.createButton(width / 2, height * 0.5, 'RESUME MISSION', () => {
-            this.scene.resume('Strategic');
-            this.scene.stop();
+            this.resumeGame();
         });
 
         const menuBtn = this.createButton(width / 2, height * 0.65, 'ABORT TO MENU', () => {
@@ -34,13 +55,30 @@ export class PauseScene extends Phaser.Scene {
 
         // Add keyboard listener to unpause
         this.input.keyboard!.on('keydown-P', () => {
-            this.scene.resume('Strategic');
-            this.scene.stop();
+            this.resumeGame();
         });
         this.input.keyboard!.on('keydown-ESC', () => {
-            this.scene.resume('Strategic');
-            this.scene.stop();
+            this.resumeGame();
         });
+    }
+
+    update() {
+        // Auto-Resume check if paused due to lost hands
+        if (this.reason === 'HAND_LOST') {
+            const tracker = this.registry.get('handTracker') as HandTracker;
+            if (tracker) {
+                const hands = tracker.getHands();
+                // If any hand is visible, resume
+                if (hands.pilot || hands.gunner) {
+                    this.resumeGame();
+                }
+            }
+        }
+    }
+
+    private resumeGame() {
+        this.scene.resume('Strategic');
+        this.scene.stop();
     }
 
     private createButton(x: number, y: number, text: string, callback: () => void) {
