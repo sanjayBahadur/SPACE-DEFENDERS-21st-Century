@@ -165,6 +165,10 @@ export class Strategic extends Phaser.Scene {
             left: Phaser.Input.Keyboard.KeyCodes.A,
             right: Phaser.Input.Keyboard.KeyCodes.D
         }) as any;
+
+        // Pause Keys
+        this.input.keyboard!.on('keydown-P', () => this.pauseGame());
+        this.input.keyboard!.on('keydown-ESC', () => this.pauseGame());
     }
 
     update(_time: number, _delta: number) {
@@ -248,10 +252,14 @@ export class Strategic extends Phaser.Scene {
         const speed = 15; // Increased speed (was 7 * multiplier, now constant fast base)
         let isUsingKeys = false;
 
-        if (this.cursors.left.isDown || this.wasd.left.isDown) { this.shipTarget.x -= speed; isUsingKeys = true; }
-        if (this.cursors.right.isDown || this.wasd.right.isDown) { this.shipTarget.x += speed; isUsingKeys = true; }
-        if (this.cursors.up.isDown || this.wasd.up.isDown) { this.shipTarget.y -= speed; isUsingKeys = true; }
-        if (this.cursors.down.isDown || this.wasd.down.isDown) { this.shipTarget.y += speed; isUsingKeys = true; }
+        const useKeyboard = this.registry.get('useKeyboardControls') ?? true;
+
+        if (useKeyboard) {
+            if (this.cursors.left.isDown || this.wasd.left.isDown) { this.shipTarget.x -= speed; isUsingKeys = true; }
+            if (this.cursors.right.isDown || this.wasd.right.isDown) { this.shipTarget.x += speed; isUsingKeys = true; }
+            if (this.cursors.up.isDown || this.wasd.up.isDown) { this.shipTarget.y -= speed; isUsingKeys = true; }
+            if (this.cursors.down.isDown || this.wasd.down.isDown) { this.shipTarget.y += speed; isUsingKeys = true; }
+        }
 
         // Logic to enable fast responsiveness when using keys
         if (isUsingKeys) {
@@ -553,5 +561,10 @@ export class Strategic extends Phaser.Scene {
         this.gameOverText.setVisible(true);
         this.cameras.main.fade(3000, 0, 0, 0);
         this.game.events.emit('PILOT_GAME_OVER');
+    }
+
+    private pauseGame() {
+        this.scene.pause();
+        this.scene.launch('PauseScene');
     }
 }

@@ -3,6 +3,9 @@ import './style.css';
 import { Boot } from './scenes/Boot';
 import { Strategic } from './scenes/Strategic';
 import { Tactical } from './scenes/Tactical';
+import { MainMenu } from './scenes/MainMenu';
+import { Credits } from './scenes/Credits';
+import { PauseScene } from './scenes/PauseScene';
 import { HandTracker } from './services/HandTracker';
 
 // Initialize HandTracker
@@ -25,7 +28,7 @@ const config: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
   // Boot scene launches the others
-  scene: [Boot, Strategic, Tactical],
+  scene: [MainMenu, Boot, Strategic, Tactical, Credits, PauseScene],
   callbacks: {
     postBoot: (game) => {
       // Expose tracker to scenes via registry

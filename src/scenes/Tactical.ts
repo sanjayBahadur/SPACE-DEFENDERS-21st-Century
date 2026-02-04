@@ -12,7 +12,6 @@ export class Tactical extends Phaser.Scene {
     private shieldLevel: number = 100;
     private score: number = 0;
     private lives: number = 3;
-    private lives: number = 3;
     private isGameOver: boolean = false;
     private wasPointerDown: boolean = false;
 
@@ -38,6 +37,11 @@ export class Tactical extends Phaser.Scene {
     // Constants
     private readonly AIM_ASSIST_RADIUS = 110;
     private readonly LOCK_BRACKET_SIZE = 50;
+
+    // Palm Cannon State
+    private palmCannonSprite: Phaser.GameObjects.Sprite | null = null;
+    private isPalmCannonActive: boolean = false;
+    private debugPalmCannon: boolean = false;
 
     constructor() {
         super('Tactical');
@@ -164,6 +168,28 @@ export class Tactical extends Phaser.Scene {
             repeat: 0
         });
 
+        // Shot Animations
+        this.anims.create({
+            key: 'shotV1_anim',
+            frames: [
+                { key: 'shotV1_1' }, { key: 'shotV1_2' },
+                { key: 'shotV1_3' }, { key: 'shotV1_4' }
+            ],
+            frameRate: 20,
+            repeat: 0
+        });
+
+        this.anims.create({
+            key: 'shotV2_anim',
+            frames: [
+                { key: 'shotV2_1' }, { key: 'shotV2_2' },
+                { key: 'shotV2_3' }, { key: 'shotV2_4' },
+                { key: 'shotV2_5' }
+            ],
+            frameRate: 24,
+            repeat: 0
+        });
+
         // Entity Groups - Groups were missing from previous edit
         this.enemies = this.add.group();
         this.missiles = this.add.group();
@@ -173,6 +199,12 @@ export class Tactical extends Phaser.Scene {
 
         // FIRE event
         this.game.events.on('FIRE', this.handleFire, this);
+
+        // Debug Key for Palm Cannon
+        this.input.keyboard?.on('keydown-P', () => {
+            this.debugPalmCannon = !this.debugPalmCannon;
+            console.log('Debug Palm Cannon:', this.debugPalmCannon);
+        });
     }
 
     private drawCockpitFrame(vw: number, vh: number) {
@@ -230,7 +262,7 @@ export class Tactical extends Phaser.Scene {
                 const rawX = gunner.x * vw;
                 const rawY = gunner.y * vh;
 
-                if (gunner.indexExtended) {
+                if (gunner.indexExtended || gunner.gesture === 'FIST') {
                     this.crosshairTarget.set(rawX, rawY);
                 }
 
@@ -242,11 +274,57 @@ export class Tactical extends Phaser.Scene {
             } else {
                 this.debugText.setText('NO SIG');
             }
+        } else {
+            this.debugText.setText('NO SIG');
         }
 
+        // === FIST CANNON LOGIC (Replaces Palm Cannon) ===
+        // Trigger: Gunner FIST gesture
+        // Mechanic: Crosshair becomes the V2 sprite (Laser Cannon), destroys everything it touches.
+
+        let isFistActive = false;
+
+        const hands = tracker.getHands();
+        const gunner = hands.gunner;
+
+        if (gunner) {
+            // Update aim coordinates from gunner hand for smooth tracking if active
+            // Note: Normal crosshair update loop handles aiming via `crosshairTarget`.
+            // We'll use `this.crosshair` position as the source of truth since it follows the hand/mouse.
+
+            if (gunner.gesture === 'FIST') {
+                isFistActive = true;
+                this.debugText.setText('FIST CANNON');
+            }
+        }
+
+        // Debug Override
+        if (this.debugPalmCannon) {
+            isFistActive = true;
+        }
+
+        if (isFistActive) {
+            if (!this.isPalmCannonActive) {
+                this.isPalmCannonActive = true;
+                this.crosshair.setVisible(false); // Hide standard crosshair
+            }
+
+            // Render Fist Cannon (V2 Sprite) at Crosshair position
+            this.updateFistCannon(_time, this.crosshair.x, this.crosshair.y);
+
+        } else {
+            if (this.isPalmCannonActive) {
+                this.isPalmCannonActive = false;
+                this.crosshair.setVisible(true); // Show standard crosshair
+                if (this.palmCannonSprite) {
+                    this.palmCannonSprite.destroy();
+                    this.palmCannonSprite = null;
+                }
+            }
+        }
         // Mouse Fallback & Priority Logic
         // Only use mouse if NO hand is actively controlling (indexExtended) or tracking is missing
-        const isHandActive = (tracker && tracker.getHands().gunner && tracker.getHands().gunner.indexExtended);
+        const isHandActive = (tracker && tracker.getHands().gunner && tracker.getHands().gunner!.indexExtended);
 
         if (!isHandActive) {
             const pointer = this.input.activePointer;
@@ -562,6 +640,14 @@ export class Tactical extends Phaser.Scene {
     private handleFire() {
         if (this.isGameOver) return;
 
+        // Visual: Play ShotV1 animation regardless of hit
+        // Spawn at crosshair
+        const shot = this.add.sprite(this.crosshair.x, this.crosshair.y, 'shotV1_1');
+        shot.setDepth(28);
+        shot.setScale(0.2); // Tiny, like missile
+        shot.play('shotV1_anim');
+        shot.on('animationcomplete', () => shot.destroy());
+
         if (this.lockedTarget && this.lockedTarget.active) {
             const target = this.lockedTarget;
             const isMissile = this.missiles.contains(target);
@@ -652,6 +738,48 @@ export class Tactical extends Phaser.Scene {
     private addScore(points: number) {
         this.score += points;
         this.scoreText.setText(String(this.score).padStart(4, '0'));
+    }
+
+    private updateFistCannon(time: number, x: number, y: number) {
+        if (!this.palmCannonSprite) {
+            this.palmCannonSprite = this.add.sprite(x, y, 'shotV2_1');
+            this.palmCannonSprite.setDepth(30);
+            this.palmCannonSprite.setScale(0.35); // Significantly smaller
+
+            // Recursive animation loop with rotation
+            const playAnim = () => {
+                if (!this.palmCannonSprite || !this.palmCannonSprite.active) return;
+                this.palmCannonSprite.play('shotV2_anim');
+                this.palmCannonSprite.once('animationcomplete', () => {
+                    if (!this.palmCannonSprite || !this.palmCannonSprite.active) return;
+                    this.palmCannonSprite.rotation += Phaser.Math.DegToRad(30); // Rotate 30 deg
+                    playAnim();
+                });
+            };
+            playAnim();
+        }
+
+        this.palmCannonSprite.x = x;
+        this.palmCannonSprite.y = y;
+
+        // Collision Logic
+        const hitRadius = 50; // Size of the cannon influence
+        this.enemies.getChildren().forEach((enemy: any) => {
+            if (Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y) < hitRadius) {
+                this.addScore(10);
+                this.createExplosion(enemy.x, enemy.y, 'explosionV2', 0.4);
+                enemy.destroy();
+            }
+        });
+
+        // Also hit missiles
+        this.missiles.getChildren().forEach((missile: any) => {
+            if (Phaser.Math.Distance.Between(x, y, missile.x, missile.y) < hitRadius) {
+                this.addScore(5);
+                this.createExplosion(missile.x, missile.y, 'explosionV1', 0.2);
+                missile.destroy();
+            }
+        });
     }
 
     private gameOver() {

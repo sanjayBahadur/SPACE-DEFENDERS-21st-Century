@@ -41,6 +41,20 @@ export class Boot extends Phaser.Scene {
         this.load.image('enemyV3_3', 'src/assets/enemyships/EnemyV3.3.png');
         this.load.image('enemyV3_4', 'src/assets/enemyships/EnemyV3.4.png');
 
+        // === SHOTS ===
+        // Standard Shot
+        this.load.image('shotV1_1', 'src/assets/shots/ShotV1.1.png');
+        this.load.image('shotV1_2', 'src/assets/shots/ShotV1.2.png');
+        this.load.image('shotV1_3', 'src/assets/shots/ShotV1.3.png');
+        this.load.image('shotV1_4', 'src/assets/shots/ShotV1.4.png');
+
+        // Palm Cannon Shot
+        this.load.image('shotV2_1', 'src/assets/shots/Shotv2.1.png'); // Note lowercase 'v' in filename based on find_by_name
+        this.load.image('shotV2_2', 'src/assets/shots/ShotV2.2.png');
+        this.load.image('shotV2_3', 'src/assets/shots/ShotV2.3.png');
+        this.load.image('shotV2_4', 'src/assets/shots/ShotV2.4.png');
+        this.load.image('shotV2_5', 'src/assets/shots/ShotV2.5.png');
+
         // === EFFECTS ===
         this.load.image('explosionV1_1', 'src/assets/effects/ExplosionV1.1.png');
         this.load.image('explosionV1_2', 'src/assets/effects/ExplosionV1.2.png');
