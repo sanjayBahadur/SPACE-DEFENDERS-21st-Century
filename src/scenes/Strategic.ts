@@ -263,9 +263,11 @@ export class Strategic extends Phaser.Scene {
             } else {
                 this.statusText.setText('NO SIGNAL').setColor('#ff4444');
 
-                // Auto-Pause if hands missing for > 1500ms and not using keyboard override
-                // and game is not already over
-                if (_time - this.lastHandTime > 1500 && !this.isGameOver) {
+                // Auto-Pause if hands missing and not using keyboard override
+                // Timeout reduced to 750ms as requested
+                const keyboardOverride = this.registry.get('manualKeyboardOverride') === true;
+
+                if (_time - this.lastHandTime > 750 && !this.isGameOver && !keyboardOverride) {
                     this.pauseGame('HAND_LOST');
                 }
             }
@@ -587,6 +589,7 @@ export class Strategic extends Phaser.Scene {
     }
 
     private pauseGame(reason?: string) {
+        this.scene.pause('Tactical'); // Pause Gunner scene too
         this.scene.pause();
         this.scene.launch('PauseScene', { reason });
     }

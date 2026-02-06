@@ -42,11 +42,12 @@ export class PauseScene extends Phaser.Scene {
             }).setOrigin(0.5);
         }
 
-        const resumeBtn = this.createButton(width / 2, height * 0.5, 'RESUME MISSION', () => {
-            this.resumeGame();
+        // Merge into a single "RESUME MISSION" button
+        this.createButton(width / 2, height * 0.55, 'RESUME MISSION', () => {
+            this.resumeGame(true); // Manual resume enables keyboard mode
         });
 
-        const menuBtn = this.createButton(width / 2, height * 0.65, 'ABORT TO MENU', () => {
+        this.createButton(width / 2, height * 0.7, 'ABORT TO MENU', () => {
             this.scene.stop('Strategic');
             this.scene.stop('Tactical'); // Ensure other scenes are stopped too if running
             this.scene.stop();
@@ -55,10 +56,10 @@ export class PauseScene extends Phaser.Scene {
 
         // Add keyboard listener to unpause
         this.input.keyboard!.on('keydown-P', () => {
-            this.resumeGame();
+            this.resumeGame(true); // Manual key press enables keyboard mode
         });
         this.input.keyboard!.on('keydown-ESC', () => {
-            this.resumeGame();
+            this.resumeGame(true); // Manual key press enables keyboard mode
         });
     }
 
@@ -68,15 +69,20 @@ export class PauseScene extends Phaser.Scene {
             const tracker = this.registry.get('handTracker') as HandTracker;
             if (tracker) {
                 const hands = tracker.getHands();
-                // If any hand is visible, resume
+                // If any hand is visible, resume automatically
                 if (hands.pilot || hands.gunner) {
-                    this.resumeGame();
+                    this.resumeGame(false); // Auto-resume prioritizes gesture control
                 }
             }
         }
     }
 
-    private resumeGame() {
+    private resumeGame(isManual: boolean) {
+        // If manual, disable auto-pause requirement for this session
+        // If auto (hands detected), re-enable auto-pause requirement
+        this.registry.set('manualKeyboardOverride', isManual);
+
+        this.scene.resume('Tactical');
         this.scene.resume('Strategic');
         this.scene.stop();
     }

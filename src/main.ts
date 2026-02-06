@@ -22,6 +22,9 @@ const config: Phaser.Types.Core.GameConfig = {
   width: 1280,
   height: 720, // 16:9 ratio
   parent: 'app',
+  dom: {
+    createContainer: true
+  },
   backgroundColor: '#000000',
   scale: {
     mode: Phaser.Scale.FIT,

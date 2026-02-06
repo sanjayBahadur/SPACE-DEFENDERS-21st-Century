@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 export class MainMenu extends Phaser.Scene {
     private music!: Phaser.Sound.BaseSound;
     private stars: Phaser.GameObjects.Arc[] = [];
-    private crawlText!: Phaser.GameObjects.Container;
+    private crawlText!: HTMLElement | null;
     private skipButton!: Phaser.GameObjects.Text;
     private menuContainer!: Phaser.GameObjects.Container;
 
@@ -42,9 +42,7 @@ export class MainMenu extends Phaser.Scene {
         }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
 
         this.skipButton.on('pointerdown', () => {
-            if (this.crawlText.visible) {
-                this.showMenu();
-            }
+            this.showMenu();
         });
 
         // Initialize Menu Container (Hidden initially)
@@ -63,52 +61,40 @@ export class MainMenu extends Phaser.Scene {
     }
 
     private startCrawl() {
-        const width = this.scale.width;
-        const height = this.scale.height;
+        // Direct DOM manipulation guarantees visibility over the canvas
+        const overlay = document.createElement('div');
+        overlay.id = 'crawl-container';
+        overlay.innerHTML = `
+            <div class="crawl-content">
+                <div class="crawl-title">GAME INSTRUCTIONS</div>
+                <div class="crawl-subtitle">Mastering Space Defenders is all about choosing your favorite way to fly!</div>
+                <div class="crawl-body">
+                    <p>For the ultimate immersive experience, try Hand Gesture controls! Simply hold your left hand in a fist to move your ship and release a fist to stop. To attack, make a finger gun with your right hand and flick your thumb to fire basic shots, or clench that same hand into a fist to unleash the powerful Fist Cannon.</p>
+                    <p>If you prefer a classic setup, you can also use your Keyboard (WASD or Arrow Keys) to navigate and your Mouse to blast enemies. Use Left Click for standard shots and Right Click for the Fist Cannon. Whether you are using your hands or your hardware, the galaxy is counting on you.</p>
+                </div>
+            </div>
+        `;
 
-        this.crawlText = this.add.container(width / 2, height + 100);
+        document.body.appendChild(overlay);
 
-        // Responsive font sizes
-        const titleSize = Math.max(32, width * 0.05); // 5% of width or min 32px
-        const subTitleSize = Math.max(24, width * 0.04);
-        const bodySize = Math.max(34, width * 0.045); // Bigger body text
+        // Store reference to the HTML Element
+        (this.crawlText as any) = overlay;
 
-        const titleStyle = { fontFamily: 'Courier', fontSize: `${titleSize}px`, color: '#ffcc00', fontStyle: 'bold', align: 'center' };
-        const bodyStyle = {
-            fontFamily: 'Courier',
-            fontSize: `${bodySize}px`,
-            color: '#ffcc00',
-            fontStyle: 'bold',
-            align: 'justify',
-            wordWrap: { width: width * 0.8 } // 80% width
-        };
-
-        const line1 = this.add.text(0, 0, 'Episode XXI', { ...titleStyle, fontSize: `${subTitleSize}px` }).setOrigin(0.5);
-        const line2 = this.add.text(0, titleSize * 2, 'DISNEY HAVE ALL YOUR MONEY', titleStyle).setOrigin(0.5);
-
-        const content = "The evil DISNEY company have purchased Star Wars and now make endless amounts of colourful nonsense as an opiate for the masses. Everybody is mesmerised. Nobody is safe.";
-        const body = this.add.text(0, titleSize * 5, content, bodyStyle).setOrigin(0.5, 0);
-
-        this.crawlText.add([line1, line2, body]);
-
-        // Crawl Tween with perspective scale
-        this.tweens.add({
-            targets: this.crawlText,
-            y: -height * 1.5, // Move further up to ensure it clears
-            scale: 0.2, // Shrink as it goes into "distance"
-            duration: 25000, // Slightly slower for readability
-            ease: 'Linear',
-            onComplete: () => {
+        // Timer to auto-show menu - matches CSS animation duration (90s)
+        this.time.delayedCall(90000, () => {
+            // Check if it's still attached to body before calling showMenu
+            if (document.getElementById('crawl-container')) {
                 this.showMenu();
             }
         });
-
-        // Start big
-        this.crawlText.setScale(1);
     }
 
     private showMenu() {
-        this.crawlText.setVisible(false);
+        const overlay = document.getElementById('crawl-container');
+        if (overlay) {
+            overlay.remove();
+            (this.crawlText as any) = null;
+        }
         this.skipButton.setVisible(false);
         this.menuContainer.setVisible(true);
         this.menuContainer.setAlpha(0);
