@@ -63,11 +63,14 @@ export class Boot extends Phaser.Scene {
         this.load.image('explosionV2_1', 'src/assets/effects/ExplosionV2.1.png');
         this.load.image('explosionV2_2', 'src/assets/effects/ExplosionV2.2.png');
         this.load.image('explosionV2_3', 'src/assets/effects/ExplosionV2.3.png');
+        this.load.image('explosionV2_3', 'src/assets/effects/ExplosionV2.3.png');
         this.load.image('explosionV2_4', 'src/assets/effects/ExplosionV2.4.png');
+
+        // === TITLE ASSET ===
+        this.load.image('title', 'src/assets/titlescreen/SpaceDefenders.png');
     }
 
     create() {
-        this.scene.launch('Strategic');
-        this.scene.launch('Tactical');
+        this.scene.start('MainMenu');
     }
 }

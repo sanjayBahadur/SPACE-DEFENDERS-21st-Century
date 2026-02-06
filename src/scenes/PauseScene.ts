@@ -15,39 +15,44 @@ export class PauseScene extends Phaser.Scene {
         const height = this.scale.height;
 
         // Semi-transparent dark overlay
-        this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
+        this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85); // Darker background for image pop
 
-        let titleText = 'GAME PAUSED';
-        let subText = '';
+        // --- TITLE IMAGE LOGIC ---
+        // Default: Use Image
+        // If Hand Lost: Maybe keep text or overlay text? 
+        // User requested: "use this png on the title menu and pause menus."
+
+        const titleImage = this.add.image(width / 2, height * 0.25, 'title').setOrigin(0.5);
+        // Scale title
+        const targetWidth = width * 0.5;
+        const scale = targetWidth / titleImage.width;
+        titleImage.setScale(scale);
+
+        // Subtext / Context
+        let subText = 'MISSION PAUSED';
+        let subColor = '#FFE81F'; // Yellow default
 
         if (this.reason === 'HAND_LOST') {
-            titleText = 'PILOT DISCONNECTED';
-            subText = 'PLEASE RETURN HANDS TO SENSOR RANGE';
+            subText = '⚠️ PILOT DISCONNECTED ⚠️\nRETURN HANDS TO SENSOR RANGE';
+            subColor = '#FF4444'; // Red alert
         }
 
-        const title = this.add.text(width / 2, height * 0.3, titleText, {
-            fontFamily: 'Impact',
-            fontSize: '56px',
-            color: '#ffcc00',
+        this.add.text(width / 2, height * 0.45, subText, {
+            fontFamily: '"Orbitron", "Impact", sans-serif',
+            fontSize: '32px',
+            color: subColor,
+            align: 'center',
             stroke: '#000000',
-            strokeThickness: 6
+            strokeThickness: 4
         }).setOrigin(0.5);
 
-        if (subText) {
-            this.add.text(width / 2, height * 0.4, subText, {
-                fontFamily: 'Courier',
-                fontSize: '24px',
-                color: '#ff4444',
-                fontStyle: 'bold'
-            }).setOrigin(0.5);
-        }
 
         // Merge into a single "RESUME MISSION" button
-        this.createButton(width / 2, height * 0.55, 'RESUME MISSION', () => {
+        this.createButton(width / 2, height * 0.6, 'RESUME MISSION', () => {
             this.resumeGame(true); // Manual resume enables keyboard mode
         });
 
-        this.createButton(width / 2, height * 0.7, 'ABORT TO MENU', () => {
+        this.createButton(width / 2, height * 0.75, 'ABORT TO MENU', () => {
             this.scene.stop('Strategic');
             this.scene.stop('Tactical'); // Ensure other scenes are stopped too if running
             this.scene.stop();
@@ -91,17 +96,23 @@ export class PauseScene extends Phaser.Scene {
         const container = this.add.container(x, y);
 
         const textObj = this.add.text(0, 0, text, {
-            fontFamily: 'Courier',
+            fontFamily: '"Century Gothic", Futura, sans-serif',
             fontSize: '32px',
-            color: '#4488ff',
+            color: '#FFE81F', // Match functionality of Main Menu
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
         const hitArea = this.add.rectangle(0, 0, textObj.width + 60, textObj.height + 30, 0x000000, 0.001)
             .setInteractive({ useHandCursor: true });
 
-        hitArea.on('pointerover', () => textObj.setColor('#ffffff'));
-        hitArea.on('pointerout', () => textObj.setColor('#4488ff'));
+        hitArea.on('pointerover', () => {
+            textObj.setColor('#FFFFFF');
+            textObj.setScale(1.1);
+        });
+        hitArea.on('pointerout', () => {
+            textObj.setColor('#FFE81F');
+            textObj.setScale(1.0);
+        });
         hitArea.on('pointerdown', callback);
 
         container.add([hitArea, textObj]);

@@ -5,17 +5,25 @@ export class MainMenu extends Phaser.Scene {
     private stars: Phaser.GameObjects.Arc[] = [];
     private crawlText!: HTMLElement | null;
     private skipButton!: Phaser.GameObjects.Text;
-    private menuContainer!: Phaser.GameObjects.Container;
+
+    private mainGroup!: Phaser.GameObjects.Container;
+    private controlsGroup!: Phaser.GameObjects.Container;
+    private settingsGroup!: Phaser.GameObjects.Container;
+
+    private skipIntro: boolean = false;
 
     constructor() {
         super('MainMenu');
+    }
+
+    init(data?: { skipIntro?: boolean }) {
+        this.skipIntro = !!data?.skipIntro;
     }
 
     create() {
         const width = this.scale.width;
         const height = this.scale.height;
 
-        // Background
         this.cameras.main.setBackgroundColor('#000000');
 
         // Starfield
@@ -31,26 +39,32 @@ export class MainMenu extends Phaser.Scene {
             this.stars.push(star);
         }
 
-        // Start Crawl Animation
-        this.startCrawl();
+        // Initialize Menus first (hidden)
+        this.createMenus();
 
-        // Skip/Menu Button
-        this.skipButton = this.add.text(width - 20, 20, 'SKIP / MENU', {
-            fontFamily: 'Courier',
-            fontSize: '16px',
-            color: '#4488ff'
-        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+        if (this.skipIntro) {
+            // Show menu immediately
+            this.mainGroup.setVisible(true);
+            this.mainGroup.setAlpha(1);
+        } else {
+            // Start Intro
+            this.startCrawl();
 
-        this.skipButton.on('pointerdown', () => {
-            this.showMenu();
-        });
+            this.skipButton = this.add.text(width - 20, 20, 'SKIP / MENU', {
+                fontFamily: 'Courier',
+                fontSize: '16px',
+                color: '#4488ff'
+            }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
 
-        // Initialize Menu Container (Hidden initially)
-        this.createMenu();
+            this.skipButton.on('pointerdown', () => {
+                if (document.getElementById('crawl-container')) {
+                    this.showMenuOrStopCrawl();
+                }
+            });
+        }
     }
 
     update() {
-        // Starfield animation
         this.stars.forEach(star => {
             star.y += (star as any).speed;
             if (star.y > this.scale.height) {
@@ -61,7 +75,6 @@ export class MainMenu extends Phaser.Scene {
     }
 
     private startCrawl() {
-        // Direct DOM manipulation guarantees visibility over the canvas
         const overlay = document.createElement('div');
         overlay.id = 'crawl-container';
         overlay.innerHTML = `
@@ -76,108 +89,204 @@ export class MainMenu extends Phaser.Scene {
         `;
 
         document.body.appendChild(overlay);
-
-        // Store reference to the HTML Element
         (this.crawlText as any) = overlay;
 
-        // Timer to auto-show menu - matches CSS animation duration (90s)
-        this.time.delayedCall(90000, () => {
-            // Check if it's still attached to body before calling showMenu
+        // Hard Cutoff (20s)
+        this.time.delayedCall(20000, () => {
+            // Only if still existing
             if (document.getElementById('crawl-container')) {
-                this.showMenu();
+                this.showMenuOrStopCrawl();
             }
         });
     }
 
-    private showMenu() {
+    private showMenuOrStopCrawl() {
         const overlay = document.getElementById('crawl-container');
         if (overlay) {
             overlay.remove();
             (this.crawlText as any) = null;
         }
-        this.skipButton.setVisible(false);
-        this.menuContainer.setVisible(true);
-        this.menuContainer.setAlpha(0);
+        if (this.skipButton) this.skipButton.setVisible(false);
 
+        this.mainGroup.setVisible(true);
+        this.mainGroup.setAlpha(0);
         this.tweens.add({
-            targets: this.menuContainer,
+            targets: this.mainGroup,
             alpha: 1,
             duration: 1000
         });
     }
 
-    private createMenu() {
+    private createMenus() {
         const width = this.scale.width;
         const height = this.scale.height;
 
-        this.menuContainer = this.add.container(0, 0);
-        this.menuContainer.setVisible(false);
+        // --- TITLE IMAGE ---
+        // Ensure texture exists
+        let title: Phaser.GameObjects.Image | Phaser.GameObjects.Text;
 
-        // Logo / Title
-        const title = this.add.text(width / 2, height * 0.25, 'SPACE DEFENDERS', {
-            fontFamily: 'Impact',
-            fontSize: '64px',
-            color: '#ffcc00',
-            stroke: '#ff0000',
-            strokeThickness: 4
-        }).setOrigin(0.5);
+        if (this.textures.exists('title')) {
+            title = this.add.image(width / 2, height * 0.20, 'title').setOrigin(0.5);
+            // Scale logic: Max width 600px or 60% of screen, whichever is smaller? 
+            // Or ensure it doesn't overlap buttons.
+            // Buttons start at 0.45 * height (approx 324px).
+            // Title is at 0.20 * height (144px).
+            // Title should fit within top 35% of screen.
 
-        // Buttons
-        const btnY = height * 0.5;
+            const maxW = width * 0.7;
+            const maxH = height * 0.3;
+
+            const scaleX = maxW / title.width;
+            const scaleY = maxH / title.height;
+            const finalScale = Math.min(scaleX, scaleY, 1.0); // Don't upscale
+
+            title.setScale(finalScale);
+        } else {
+            // Fallback text if image missing
+            title = this.add.text(width / 2, height * 0.2, 'SPACE DEFENDERS', {
+                fontFamily: 'Impact', fontSize: '64px', color: '#ffcc00'
+            }).setOrigin(0.5);
+        }
+
+        // --- 1. MAIN GROUP ---
+        this.mainGroup = this.add.container(0, 0);
+        this.mainGroup.add(title);
+
+        const mainBtns = [
+            {
+                text: 'START MISSION', cb: () => {
+                    this.scene.start('Strategic');
+                    this.scene.launch('Tactical');
+                }
+            }, // Start Game
+            { text: 'GAME CONTROLS', cb: () => this.showControlsGroup() },
+            { text: 'SETTINGS', cb: () => this.showSettingsGroup() },
+            { text: 'CREDITS', cb: () => this.scene.start('Credits') }
+        ];
+
+        // Center vertically in the remaining space
+        let startY = height * 0.5;
         const gap = 60;
 
-        const playBtn = this.createButton(width / 2, btnY, 'START MISSION', () => {
-            this.scene.start('Boot'); // Boot handles loading and then starts Strategic
+        mainBtns.forEach((btn, idx) => {
+            const b = this.createButton(width / 2, startY + (idx * gap), btn.text, btn.cb);
+            this.mainGroup.add(b);
         });
 
-        const creditsBtn = this.createButton(width / 2, btnY + gap, 'CREDITS', () => {
-            this.scene.start('Credits');
+        // --- 2. CONTROLS GROUP ---
+        this.controlsGroup = this.add.container(0, 0);
+        this.controlsGroup.setVisible(false);
+
+        const controlsTitle = this.add.text(width / 2, height * 0.2, 'CONTROLS', {
+            fontFamily: '"Orbitron", "Impact", sans-serif', fontSize: '64px', color: '#FFE81F', stroke: '#FFE81F', strokeThickness: 1
+        }).setOrigin(0.5);
+        this.controlsGroup.add(controlsTitle);
+
+        const gestureToggle = this.createToggle(width / 2, startY, 'GESTURE CONTROL', 'useGestures');
+        const keyboardToggle = this.createToggle(width / 2, startY + gap, 'KEYBOARD & MOUSE', 'useKeyboardControls');
+
+        const backBtnControls = this.createButton(width / 2, height * 0.8, 'BACK', () => this.showMainGroup());
+
+        this.controlsGroup.add([gestureToggle, keyboardToggle, backBtnControls]);
+
+
+        // --- 3. SETTINGS GROUP ---
+        this.settingsGroup = this.add.container(0, 0);
+        this.settingsGroup.setVisible(false);
+        const settingsTitle = this.add.text(width / 2, height * 0.2, 'SETTINGS', {
+            fontFamily: '"Orbitron", "Impact", sans-serif', fontSize: '64px', color: '#FFE81F', stroke: '#FFE81F', strokeThickness: 1
+        }).setOrigin(0.5);
+        this.settingsGroup.add(settingsTitle);
+
+        const cameraToggle = this.createToggle(width / 2, startY, 'CAMERA ACCESS', 'useCamera', (state) => {
+            const tracker = this.registry.get('handTracker');
+            if (tracker && tracker.setEnabled) {
+                tracker.setEnabled(state);
+            }
+        });
+        const soundToggle = this.createToggle(width / 2, startY + gap, 'SOUND', 'soundEnabled', (state) => {
+            this.sound.mute = !state;
         });
 
-        const controlsEnabled = this.registry.get('useKeyboardControls') ?? true;
-        const controlsText = controlsEnabled ? 'CONTROLS: KEYBOARD & MOUSE [ON]' : 'CONTROLS: KEYBOARD & MOUSE [OFF]';
-        const controlBtn = this.createButton(width / 2, btnY + gap * 2, controlsText, () => {
-            const current = this.registry.get('useKeyboardControls') ?? true;
-            const newState = !current;
-            this.registry.set('useKeyboardControls', newState);
+        const backBtnSettings = this.createButton(width / 2, height * 0.8, 'BACK', () => this.showMainGroup());
 
-            // Update button text
-            const newText = newState ? 'CONTROLS: KEYBOARD & MOUSE [ON]' : 'CONTROLS: KEYBOARD & MOUSE [OFF]';
-            (controlBtn.getAt(1) as Phaser.GameObjects.Text).setText(newText);
+        this.settingsGroup.add([cameraToggle, soundToggle, backBtnSettings]);
 
-            // Visual feedback color
-            const newColor = newState ? 0x00ff00 : 0xff4444;
-            (controlBtn.getAt(1) as Phaser.GameObjects.Text).setColor(newState ? '#00ff00' : '#ff4444');
-        });
+        this.mainGroup.setVisible(false);
+    }
 
-        // Initialize the registry default if not set
-        if (this.registry.get('useKeyboardControls') === undefined) {
-            this.registry.set('useKeyboardControls', true);
-        }
-        // Set initial color
-        (controlBtn.getAt(1) as Phaser.GameObjects.Text).setColor(controlsEnabled ? '#00ff00' : '#ff4444');
+    private showMainGroup() {
+        this.mainGroup.setVisible(true);
+        this.controlsGroup.setVisible(false);
+        this.settingsGroup.setVisible(false);
+    }
 
+    private showControlsGroup() {
+        this.mainGroup.setVisible(false);
+        this.controlsGroup.setVisible(true);
+        this.settingsGroup.setVisible(false);
+    }
 
-        this.menuContainer.add([title, playBtn, creditsBtn, controlBtn]);
+    private showSettingsGroup() {
+        this.mainGroup.setVisible(false);
+        this.controlsGroup.setVisible(false);
+        this.settingsGroup.setVisible(true);
     }
 
     private createButton(x: number, y: number, text: string, callback: () => void) {
         const container = this.add.container(x, y);
 
         const textObj = this.add.text(0, 0, text, {
-            fontFamily: 'Courier',
-            fontSize: '28px',
-            color: '#4488ff',
+            fontFamily: '"Century Gothic", Futura, sans-serif',
+            fontSize: '32px',
+            color: '#FFE81F',
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        // Invisible hit area
-        const hitArea = this.add.rectangle(0, 0, textObj.width + 40, textObj.height + 20, 0x000000, 0.001)
+        const hitArea = this.add.rectangle(0, 0, textObj.width + 80, textObj.height + 30, 0x000000, 0.001)
             .setInteractive({ useHandCursor: true });
 
-        hitArea.on('pointerover', () => textObj.setColor('#ffffff'));
-        hitArea.on('pointerout', () => textObj.setColor(textObj.text.includes('OFF') ? '#ff4444' : (textObj.text.includes('ON') ? '#00ff00' : '#4488ff')));
+        hitArea.on('pointerover', () => {
+            textObj.setScale(1.1);
+            textObj.setColor('#FFFFFF');
+        });
+        hitArea.on('pointerout', () => {
+            textObj.setScale(1.0);
+            textObj.setColor('#FFE81F');
+        });
         hitArea.on('pointerdown', callback);
+
+        container.add([hitArea, textObj]);
+        return container;
+    }
+
+    private createToggle(x: number, y: number, label: string, registryKey: string, onToggle?: (state: boolean) => void) {
+        const container = this.add.container(x, y);
+
+        let state = this.registry.get(registryKey) ?? true;
+
+        const updateText = () => `${label}: [${state ? 'ON' : 'OFF'}]`;
+
+        const textObj = this.add.text(0, 0, updateText(), {
+            fontFamily: '"Century Gothic", Futura, sans-serif',
+            fontSize: '28px',
+            color: state ? '#00FF00' : '#FF4444',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        const hitArea = this.add.rectangle(0, 0, textObj.width + 60, textObj.height + 20, 0x000000, 0.001)
+            .setInteractive({ useHandCursor: true });
+
+        hitArea.on('pointerdown', () => {
+            state = !state;
+            this.registry.set(registryKey, state);
+            textObj.setText(updateText());
+            textObj.setColor(state ? '#00FF00' : '#FF4444');
+            if (onToggle) onToggle(state);
+        });
+
+        hitArea.on('pointerover', () => textObj.setScale(1.1));
+        hitArea.on('pointerout', () => textObj.setScale(1.0));
 
         container.add([hitArea, textObj]);
         return container;

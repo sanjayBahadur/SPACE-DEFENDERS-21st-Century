@@ -31,7 +31,7 @@ const config: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
   // Boot scene launches the others
-  scene: [MainMenu, Boot, Strategic, Tactical, Credits, PauseScene],
+  scene: [Boot, MainMenu, Strategic, Tactical, Credits, PauseScene],
   callbacks: {
     postBoot: (game) => {
       // Expose tracker to scenes via registry
