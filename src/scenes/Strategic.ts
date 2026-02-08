@@ -359,8 +359,8 @@ export class Strategic extends Phaser.Scene {
         // Death Ray Collision
         this.deathRays.getChildren().forEach((ray: any) => {
             if (!ray.active) return;
-            const shipX = this.ship.x;
-            const shipY = this.ship.y;
+            //const shipX = this.ship.x;
+            //const shipY = this.ship.y;
 
             // HITBOX IMPROVEMENT: Use bounds overlap for beam collision
             // Tighter bounds for ray as well
