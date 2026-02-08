@@ -64,7 +64,7 @@ export class PauseScene extends Phaser.Scene {
             this.scene.stop('Strategic');
             this.scene.stop('Tactical'); // Ensure other scenes are stopped too if running
             this.scene.stop();
-            this.scene.start('MainMenu');
+            this.scene.start('MainMenu', { skipIntro: true });
         });
 
         // Add keyboard listener to unpause
