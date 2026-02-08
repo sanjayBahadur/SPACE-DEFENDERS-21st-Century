@@ -45,7 +45,7 @@ export class Tactical extends Phaser.Scene {
 
     // Overheat Mechanic
     private palmTemp: number = 0;
-    private readonly TEMP_MAX = 100;
+    // private readonly TEMP_MAX = 100;
     private readonly TEMP_RISE_RATE = 2.5; // Very fast overheat (~0.7s)
     private readonly TEMP_COOL_RATE = 0.5;
     private tempBar!: Phaser.GameObjects.Rectangle;
@@ -906,7 +906,7 @@ export class Tactical extends Phaser.Scene {
         this.scoreText.setText(String(this.score).padStart(4, '0'));
     }
 
-    private updateFistCannon(time: number, x: number, y: number) {
+    private updateFistCannon(_time: number, x: number, y: number) {
         if (!this.palmCannonSprite) {
             this.palmCannonSprite = this.add.sprite(x, y, 'shotV2_1');
             this.palmCannonSprite.setDepth(30);

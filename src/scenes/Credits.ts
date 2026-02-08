@@ -33,7 +33,7 @@ export class Credits extends Phaser.Scene {
                 <div class="crawl-body">
                     <p><strong>SPACE DEFENDERS TEAM</strong><br><br>Sanjay Malla<br>(sanjayBahadur)</p>
                     <p><strong>LIBRARIES & TECH</strong><br><br>Phaser 3<br>MediaPipe Hands<br>TypeScript<br>Vite</p>
-                    <p><strong>SPECIAL THANKS</strong><br><br>Mina<br>The 21st Century<br>Open Source Contributors</p>
+                    <p><strong>SPECIAL THANKS</strong><br><br>Maddiem and Naviya<br>(for no reason)<br>and all the Open Source Contributors</p>
                     <p>The Force will be with you.<br>Always.</p>
                 </div>
             </div>
