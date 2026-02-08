@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 
 export class MainMenu extends Phaser.Scene {
-    private music!: Phaser.Sound.BaseSound;
     private stars: Phaser.GameObjects.Arc[] = [];
     private crawlText!: HTMLElement | null;
     private skipButton!: Phaser.GameObjects.Text;
@@ -120,99 +119,127 @@ export class MainMenu extends Phaser.Scene {
     private createMenus() {
         const width = this.scale.width;
         const height = this.scale.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
 
-        // --- TITLE IMAGE ---
-        // Ensure texture exists
+        // Relative Y positions (relative to center)
+        // Title visual position: 25% down -> -25% from center
+        const titleRelY = (height * 0.25) - centerY;
+        // Buttons center visual position: 65% down -> +15% from center
+        const buttonsRelY = (height * 0.65) - centerY;
+
+        // --- TITLE ---
         let title: Phaser.GameObjects.Image | Phaser.GameObjects.Text;
 
+        // Note: Title is added to mainGroup, so position is relative to (centerX, centerY)
         if (this.textures.exists('title')) {
-            title = this.add.image(width / 2, height * 0.20, 'title').setOrigin(0.5);
-            // Scale logic: Max width 600px or 60% of screen, whichever is smaller? 
-            // Or ensure it doesn't overlap buttons.
-            // Buttons start at 0.45 * height (approx 324px).
-            // Title is at 0.20 * height (144px).
-            // Title should fit within top 35% of screen.
+            title = this.add.image(0, titleRelY, 'title').setOrigin(0.5);
 
-            const maxW = width * 0.7;
-            const maxH = height * 0.3;
+            const maxW = width * 0.9; // Increased from 0.8
+            const maxH = height * 0.35; // Increased from 0.3
 
-            const scaleX = maxW / title.width;
-            const scaleY = maxH / title.height;
-            const finalScale = Math.min(scaleX, scaleY, 1.0); // Don't upscale
-
+            const finalScale = Math.min(maxW / title.width, maxH / title.height, 1.0);
             title.setScale(finalScale);
         } else {
-            // Fallback text if image missing
-            title = this.add.text(width / 2, height * 0.2, 'SPACE DEFENDERS', {
-                fontFamily: 'Impact', fontSize: '64px', color: '#ffcc00'
+            // Fallback text-based logo
+            title = this.add.text(0, titleRelY, 'SPACE DEFENDERS', {
+                fontFamily: '"Orbitron", "Impact", sans-serif',
+                fontSize: '100px', // Increased from 84px
+                color: '#FFE81F', // Star Wars Yellow
+                stroke: '#000000',
+                strokeThickness: 10, // Slightly thicker stroke for bigger text
+                shadow: { offsetX: 0, offsetY: 0, color: '#FFE81F', blur: 12, stroke: true, fill: true }
             }).setOrigin(0.5);
+
+            // Pulse animation
+            this.tweens.add({
+                targets: title,
+                scale: { from: 1, to: 1.02 },
+                duration: 2000,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
         }
 
         // --- 1. MAIN GROUP ---
-        this.mainGroup = this.add.container(0, 0);
+        // Container anchored at SCREEN CENTER
+        this.mainGroup = this.add.container(centerX, centerY);
         this.mainGroup.add(title);
 
         const mainBtns = [
             {
                 text: 'START MISSION', cb: () => {
+                    this.registry.set('manualKeyboardOverride', false); // Reset auto-pause safety
                     this.scene.start('Strategic');
                     this.scene.launch('Tactical');
                 }
-            }, // Start Game
+            },
             { text: 'GAME CONTROLS', cb: () => this.showControlsGroup() },
             { text: 'SETTINGS', cb: () => this.showSettingsGroup() },
             { text: 'CREDITS', cb: () => this.scene.start('Credits') }
         ];
 
-        // Center vertically in the remaining space
-        let startY = height * 0.5;
-        const gap = 60;
+        this.createButtonGroup(mainBtns, this.mainGroup, 0, buttonsRelY);
 
-        mainBtns.forEach((btn, idx) => {
-            const b = this.createButton(width / 2, startY + (idx * gap), btn.text, btn.cb);
-            this.mainGroup.add(b);
-        });
 
         // --- 2. CONTROLS GROUP ---
-        this.controlsGroup = this.add.container(0, 0);
+        this.controlsGroup = this.add.container(centerX, centerY);
         this.controlsGroup.setVisible(false);
 
-        const controlsTitle = this.add.text(width / 2, height * 0.2, 'CONTROLS', {
-            fontFamily: '"Orbitron", "Impact", sans-serif', fontSize: '64px', color: '#FFE81F', stroke: '#FFE81F', strokeThickness: 1
+        const controlsTitle = this.add.text(0, titleRelY, 'CONTROLS', {
+            fontFamily: '"Orbitron", "Impact", sans-serif', fontSize: '64px', color: '#FFE81F', stroke: '#000000', strokeThickness: 6
         }).setOrigin(0.5);
         this.controlsGroup.add(controlsTitle);
 
-        const gestureToggle = this.createToggle(width / 2, startY, 'GESTURE CONTROL', 'useGestures');
-        const keyboardToggle = this.createToggle(width / 2, startY + gap, 'KEYBOARD & MOUSE', 'useKeyboardControls');
+        const controlsGap = 70;
+        const totalControlsHeight = 2 * controlsGap; // 3 items logic: (3-1)*gap
+        let currentY = buttonsRelY - (totalControlsHeight / 2);
 
-        const backBtnControls = this.createButton(width / 2, height * 0.8, 'BACK', () => this.showMainGroup());
+        const gestureToggle = this.createToggle(0, currentY, 'GESTURE CONTROL', 'useGestures');
+        currentY += controlsGap;
+        const keyboardToggle = this.createToggle(0, currentY, 'KEYBOARD & MOUSE', 'useKeyboardControls');
+        currentY += controlsGap;
+        const backBtnControls = this.createButton(0, currentY, 'BACK', () => this.showMainGroup());
 
         this.controlsGroup.add([gestureToggle, keyboardToggle, backBtnControls]);
 
 
         // --- 3. SETTINGS GROUP ---
-        this.settingsGroup = this.add.container(0, 0);
+        this.settingsGroup = this.add.container(centerX, centerY);
         this.settingsGroup.setVisible(false);
-        const settingsTitle = this.add.text(width / 2, height * 0.2, 'SETTINGS', {
-            fontFamily: '"Orbitron", "Impact", sans-serif', fontSize: '64px', color: '#FFE81F', stroke: '#FFE81F', strokeThickness: 1
+        const settingsTitle = this.add.text(0, titleRelY, 'SETTINGS', {
+            fontFamily: '"Orbitron", "Impact", sans-serif', fontSize: '64px', color: '#FFE81F', stroke: '#000000', strokeThickness: 6
         }).setOrigin(0.5);
         this.settingsGroup.add(settingsTitle);
 
-        const cameraToggle = this.createToggle(width / 2, startY, 'CAMERA ACCESS', 'useCamera', (state) => {
+        currentY = buttonsRelY - (totalControlsHeight / 2);
+
+        const cameraToggle = this.createToggle(0, currentY, 'CAMERA ACCESS', 'useCamera', (state) => {
             const tracker = this.registry.get('handTracker');
-            if (tracker && tracker.setEnabled) {
-                tracker.setEnabled(state);
-            }
+            if (tracker && tracker.setEnabled) tracker.setEnabled(state);
         });
-        const soundToggle = this.createToggle(width / 2, startY + gap, 'SOUND', 'soundEnabled', (state) => {
+        currentY += controlsGap;
+        const soundToggle = this.createToggle(0, currentY, 'SOUND', 'soundEnabled', (state) => {
             this.sound.mute = !state;
         });
-
-        const backBtnSettings = this.createButton(width / 2, height * 0.8, 'BACK', () => this.showMainGroup());
+        currentY += controlsGap;
+        const backBtnSettings = this.createButton(0, currentY, 'BACK', () => this.showMainGroup());
 
         this.settingsGroup.add([cameraToggle, soundToggle, backBtnSettings]);
 
         this.mainGroup.setVisible(false);
+    }
+
+    private createButtonGroup(btns: { text: string, cb: () => void }[], group: Phaser.GameObjects.Container, x: number, centerY: number) {
+        const gap = 70;
+        const totalHeight = (btns.length - 1) * gap;
+        const startY = centerY - (totalHeight / 2);
+
+        btns.forEach((btn, idx) => {
+            const b = this.createButton(x, startY + (idx * gap), btn.text, btn.cb);
+            group.add(b);
+        });
     }
 
     private showMainGroup() {

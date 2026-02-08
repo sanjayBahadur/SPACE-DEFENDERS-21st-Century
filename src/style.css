@@ -17,20 +17,26 @@
 
 body {
     margin: 0;
-    display: flex;
-    place-items: center;
-    min-width: 320px;
-    min-height: 100vh;
-    overflow: hidden;
-    /* Prevent scrolling */
-}
-
-#app {
-    width: 100%;
-    height: 100%;
+    padding: 0;
     display: flex;
     justify-content: center;
     align-items: center;
+    min-width: 320px;
+    min-height: 100vh;
+    overflow: hidden;
+    background-color: #000000;
+    /* Ensure background matches game */
+}
+
+#app {
+    /* Let the canvas define the size, or fill screen but center content */
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    margin: 0;
 }
 
 /* Star Wars Crawl Styles */

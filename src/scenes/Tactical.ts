@@ -14,6 +14,7 @@ export class Tactical extends Phaser.Scene {
     private lives: number = 3;
     private isGameOver: boolean = false;
     private wasPointerDown: boolean = false;
+    private lastHandTime: number = 0;
 
     // Entity Groups
     private enemies!: Phaser.GameObjects.Group;
@@ -102,6 +103,20 @@ export class Tactical extends Phaser.Scene {
         this.gameOverText = this.add.text(vw / 2, vh / 2, 'GAME OVER', {
             fontSize: '40px', color: '#ff0000', fontStyle: 'bold'
         }).setOrigin(0.5).setVisible(false);
+
+        // Pause Button
+        const pauseBtn = this.add.text(vw - 20, 20, 'II', {
+            fontFamily: 'Courier', fontSize: '24px', color: '#ff4444', fontStyle: 'bold',
+            backgroundColor: '#220000', padding: { x: 10, y: 5 }
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+
+        pauseBtn.on('pointerdown', () => this.pauseGame());
+        pauseBtn.on('pointerover', () => pauseBtn.setColor('#ffffff'));
+        pauseBtn.on('pointerout', () => pauseBtn.setColor('#ff4444'));
+
+        // Pause Keys
+        this.input.keyboard!.on('keydown-P', () => this.pauseGame());
+        this.input.keyboard!.on('keydown-ESC', () => this.pauseGame());
 
         // === LOCK BRACKET ===
         this.lockBracket = this.add.container(-100, -100);
@@ -200,11 +215,6 @@ export class Tactical extends Phaser.Scene {
         // FIRE event
         this.game.events.on('FIRE', this.handleFire, this);
 
-        // Debug Key for Palm Cannon
-        this.input.keyboard?.on('keydown-P', () => {
-            this.debugPalmCannon = !this.debugPalmCannon;
-            console.log('Debug Palm Cannon:', this.debugPalmCannon);
-        });
     }
 
     private drawCockpitFrame(vw: number, vh: number) {
@@ -257,6 +267,19 @@ export class Tactical extends Phaser.Scene {
         if (tracker) {
             const hands = tracker.getHands();
             const gunner = hands.gunner;
+            const pilot = hands.pilot;
+
+            if (gunner || pilot) {
+                this.lastHandTime = _time;
+
+                // If hands are back, re-enable auto-pause safety
+                // UNLESS we are in explicit Keyboard Mode
+                const isKeyboardMode = this.registry.get('keyboardMode') === true;
+                if (!isKeyboardMode && this.registry.get('manualKeyboardOverride') === true) {
+                    this.registry.set('manualKeyboardOverride', false);
+                    this.debugText.setText('HANDS DETECTED - SAFETY ON');
+                }
+            }
 
             if (gunner) {
                 const rawX = gunner.x * vw;
@@ -273,6 +296,13 @@ export class Tactical extends Phaser.Scene {
                 this.debugText.setText(`G:${gunner.gesture}`);
             } else {
                 this.debugText.setText('NO SIG');
+
+                // Auto-Pause if hands missing and not using keyboard override
+                const keyboardOverride = this.registry.get('manualKeyboardOverride') === true;
+
+                if (_time - this.lastHandTime > 750 && !this.isGameOver && !keyboardOverride) {
+                    this.pauseGame('HAND_LOST');
+                }
             }
         } else {
             this.debugText.setText('NO SIG');
@@ -786,5 +816,12 @@ export class Tactical extends Phaser.Scene {
         this.isGameOver = true;
         this.gameOverText.setVisible(true);
         this.cameras.main.fade(3000, 0, 0, 0);
+    }
+
+    private pauseGame(reason?: string) {
+        if (this.scene.isPaused()) return;
+        this.scene.pause('Strategic');
+        this.scene.pause();
+        this.scene.launch('PauseScene', { reason });
     }
 }

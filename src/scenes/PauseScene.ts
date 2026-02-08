@@ -48,11 +48,19 @@ export class PauseScene extends Phaser.Scene {
 
 
         // Merge into a single "RESUME MISSION" button
-        this.createButton(width / 2, height * 0.6, 'RESUME MISSION', () => {
+        this.createButton(width / 2, height * 0.55, 'RESUME MISSION', () => {
             this.resumeGame(true); // Manual resume enables keyboard mode
         });
 
-        this.createButton(width / 2, height * 0.75, 'ABORT TO MENU', () => {
+        // Toggle for Keyboard Mode
+        const isKeyboardMode = this.registry.get('keyboardMode') === true;
+        this.createToggle(width / 2, height * 0.68, 'KEYBOARD & MOUSE MODE', isKeyboardMode, (state) => {
+            this.registry.set('keyboardMode', state);
+            // If turning ON, we simulate a manual override immediately
+            if (state) this.registry.set('manualKeyboardOverride', true);
+        });
+
+        this.createButton(width / 2, height * 0.82, 'ABORT TO MENU', () => {
             this.scene.stop('Strategic');
             this.scene.stop('Tactical'); // Ensure other scenes are stopped too if running
             this.scene.stop();
@@ -114,6 +122,37 @@ export class PauseScene extends Phaser.Scene {
             textObj.setScale(1.0);
         });
         hitArea.on('pointerdown', callback);
+
+        container.add([hitArea, textObj]);
+        return container;
+    }
+
+    private createToggle(x: number, y: number, label: string, initialState: boolean, onToggle: (state: boolean) => void) {
+        const container = this.add.container(x, y);
+
+        let state = initialState;
+
+        const updateText = () => `${label}: [${state ? 'ON' : 'OFF'}]`;
+
+        const textObj = this.add.text(0, 0, updateText(), {
+            fontFamily: '"Century Gothic", Futura, sans-serif',
+            fontSize: '28px',
+            color: state ? '#00FF00' : '#888888',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        const hitArea = this.add.rectangle(0, 0, textObj.width + 60, textObj.height + 20, 0x000000, 0.001)
+            .setInteractive({ useHandCursor: true });
+
+        hitArea.on('pointerdown', () => {
+            state = !state;
+            textObj.setText(updateText());
+            textObj.setColor(state ? '#00FF00' : '#888888');
+            onToggle(state);
+        });
+
+        hitArea.on('pointerover', () => textObj.setScale(1.1));
+        hitArea.on('pointerout', () => textObj.setScale(1.0));
 
         container.add([hitArea, textObj]);
         return container;

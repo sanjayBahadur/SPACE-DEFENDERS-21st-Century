@@ -246,6 +246,13 @@ export class Strategic extends Phaser.Scene {
             // Update timestamp if ANY hand is seen
             if (pilot || gunner) {
                 this.lastHandTime = _time;
+                // If hands are back, re-enable auto-pause safety
+                // UNLESS we are in explicit Keyboard Mode
+                const isKeyboardMode = this.registry.get('keyboardMode') === true;
+                if (!isKeyboardMode && this.registry.get('manualKeyboardOverride') === true) {
+                    this.registry.set('manualKeyboardOverride', false);
+                    this.statusText.setText('HANDS DETECTED\nSAFETY ON').setColor('#44ff44');
+                }
             }
 
             if (pilot) {
@@ -589,6 +596,7 @@ export class Strategic extends Phaser.Scene {
     }
 
     private pauseGame(reason?: string) {
+        if (this.scene.isPaused()) return;
         this.scene.pause('Tactical'); // Pause Gunner scene too
         this.scene.pause();
         this.scene.launch('PauseScene', { reason });
