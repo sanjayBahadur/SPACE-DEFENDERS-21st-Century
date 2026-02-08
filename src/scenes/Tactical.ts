@@ -46,8 +46,8 @@ export class Tactical extends Phaser.Scene {
     // Overheat Mechanic
     private palmTemp: number = 0;
     private readonly TEMP_MAX = 100;
-    private readonly TEMP_RISE_RATE = 0.5;
-    private readonly TEMP_COOL_RATE = 0.3;
+    private readonly TEMP_RISE_RATE = 0.9; // ~1.8 seconds to overheat
+    private readonly TEMP_COOL_RATE = 0.4; // Faster cool down too? Let's keep smooth.
     private tempBar!: Phaser.GameObjects.Rectangle;
     private tempBarBg!: Phaser.GameObjects.Rectangle;
     private overheatWarningText!: Phaser.GameObjects.Text;
@@ -103,15 +103,20 @@ export class Tactical extends Phaser.Scene {
             fontFamily: 'Courier', fontSize: '16px', color: '#ff4444'
         });
 
-        this.add.text(25, vh - 65, 'SCORE', { fontFamily: 'Courier', fontSize: '10px', color: '#666666' });
-        this.scoreText = this.add.text(25, vh - 50, '0000', { fontFamily: 'Courier', fontSize: '18px', color: '#ff6666' });
+        // Top Right Score (Analog Style)
+        this.add.text(vw - 25, 25, 'SCORE', { fontFamily: 'Courier', fontSize: '10px', color: '#666666' }).setOrigin(1, 0);
+        this.scoreText = this.add.text(vw - 25, 40, '0000', {
+            fontFamily: 'Courier', fontSize: '24px', color: '#ff8888',
+            stroke: '#442222', strokeThickness: 2
+        }).setOrigin(1, 0);
+
+        // Bottom Left Lock/Ship Count (moved from Top Right)
+        this.add.text(25, vh - 65, 'ENEMIES', { fontFamily: 'Courier', fontSize: '10px', color: '#666666' });
+        this.lockCountText = this.add.text(25, vh - 50, '000', { fontFamily: 'Courier', fontSize: '18px', color: '#ff6666' });
 
         this.add.text(vw / 2 - 50, vh - 65, 'SHIELDS', { fontFamily: 'Courier', fontSize: '10px', color: '#666666' });
         this.add.rectangle(vw / 2, vh - 48, 100, 10, 0x331111);
         this.shieldBar = this.add.rectangle(vw / 2, vh - 48, 100, 10, 0xff3333);
-
-        this.add.text(vw - 75, 25, 'LOCK', { fontFamily: 'Courier', fontSize: '10px', color: '#666666' });
-        this.lockCountText = this.add.text(vw - 75, 40, '000', { fontFamily: 'Courier', fontSize: '16px', color: '#ff6666' });
 
         this.add.text(vw - 75, vh - 65, 'LIVES', { fontFamily: 'Courier', fontSize: '10px', color: '#666666' });
         this.livesText = this.add.text(vw - 75, vh - 50, '♥♥♥', { fontFamily: 'Courier', fontSize: '18px', color: '#ff4444' });
@@ -122,8 +127,10 @@ export class Tactical extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Background for temp bar
-        this.tempBarBg = this.add.rectangle(vw - 30, vh / 2, 10, 100, 0x221111);
-        this.tempBarBg.setStrokeStyle(1, 0x442222);
+        // Background for temp bar
+        // STRICTLY defined height for container.
+        this.tempBarBg = this.add.rectangle(vw - 30, vh / 2, 14, 104, 0x110505);
+        this.tempBarBg.setStrokeStyle(2, 0x552222);
 
         // The bar itself (growing from bottom)
         this.tempBar = this.add.rectangle(vw - 30, vh / 2 + 50, 8, 0, 0x00ff00);
@@ -151,15 +158,9 @@ export class Tactical extends Phaser.Scene {
             this.game.events.off('PILOT_GAME_OVER', this.gameOver, this);
         });
 
-        // Pause Button
-        const pauseBtn = this.add.text(vw - 20, 20, 'II', {
-            fontFamily: 'Courier', fontSize: '24px', color: '#ff4444', fontStyle: 'bold',
-            backgroundColor: '#220000', padding: { x: 10, y: 5 }
-        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
-
-        pauseBtn.on('pointerdown', () => this.pauseGame());
-        pauseBtn.on('pointerover', () => pauseBtn.setColor('#ffffff'));
-        pauseBtn.on('pointerout', () => pauseBtn.setColor('#ff4444'));
+        // Pause Keys only
+        this.input.keyboard!.on('keydown-P', () => this.pauseGame());
+        this.input.keyboard!.on('keydown-ESC', () => this.pauseGame());
 
         // Pause Keys
         this.input.keyboard!.on('keydown-P', () => this.pauseGame());
@@ -383,10 +384,25 @@ export class Tactical extends Phaser.Scene {
         // Temperature Logic
         if (isFistActive) {
             this.palmTemp += this.TEMP_RISE_RATE;
-            // Screen shake when hot
-            if (this.palmTemp > 70) {
-                this.cameras.main.shake(50, 0.0005 * (this.palmTemp - 60)); // Gentle rumble
+
+            // INTENSE FEEDBACK
+            const intensity = this.palmTemp / 100;
+
+            // Screen shake scales with temp
+            if (this.palmTemp > 20) {
+                // Shake starts earlier and gets stronger
+                const shakeAmt = 0.0002 + (intensity * 0.0025);
+                this.cameras.main.shake(50, shakeAmt);
             }
+
+            // Random Red Flash Warning (High Temp)
+            if (this.palmTemp > 60) {
+                // increasing chance as temp rises
+                if (Math.random() < (intensity * 0.15)) {
+                    this.cameras.main.flash(50, 255, 0, 0); // Removed invalid force/alpha arg
+                }
+            }
+
         } else {
             this.palmTemp -= this.TEMP_COOL_RATE;
         }
@@ -395,35 +411,49 @@ export class Tactical extends Phaser.Scene {
         this.palmTemp = Phaser.Math.Clamp(this.palmTemp, 0, 100);
 
         // Update TI Bar
-        const barHeight = (this.palmTemp / 100) * 98; // 98px max height
+        // Bg height is 104 with stroke 2. Inner height is ~100.
+        // We use 98 as max bar height to leave 1px gap top/bottom.
+        const maxBarHeight = 98;
+        const barHeight = (this.palmTemp / 100) * maxBarHeight;
         this.tempBar.height = barHeight;
 
-        // Color Stages
-        if (this.palmTemp < 50) this.tempBar.setFillStyle(0x00ff00);
-        else if (this.palmTemp < 80) this.tempBar.setFillStyle(0xffff00);
+        // Color Stages & Effects
+        if (this.palmTemp < 40) this.tempBar.setFillStyle(0x00ff00);
+        else if (this.palmTemp < 75) this.tempBar.setFillStyle(0xffff00);
         else {
             this.tempBar.setFillStyle(0xff0000);
-            // Particle Steam Effect? (Simple random dots for now)
-            if (Math.random() < 0.3) {
+
+            // High Temp Particles
+            if (Math.random() < 0.4) {
                 const p = this.add.rectangle(
-                    this.tempBar.x + Phaser.Math.Between(-5, 5),
+                    this.tempBar.x + Phaser.Math.Between(-6, 6),
                     this.tempBar.y - barHeight,
-                    2, 2, 0xffaa00
+                    3, 3, 0xffaa00
                 );
                 this.tweens.add({
                     targets: p,
-                    y: p.y - 20,
+                    y: p.y - 30,
                     alpha: 0,
-                    duration: 500,
+                    scale: 0.5,
+                    duration: 400,
                     onComplete: () => p.destroy()
                 });
             }
         }
 
-        // Overheat Warning
-        if (this.palmTemp > 80) {
+        // Overheat Warning & Timer
+        if (this.palmTemp > 75) {
             this.overheatWarningText.setVisible(true);
-            this.overheatWarningText.setText(this.palmTemp >= 95 ? "CRITICAL TEMP!" : "WARNING: OVERHEAT");
+
+            // Calculate time until meltdown
+            const framesLeft = (100 - this.palmTemp) / this.TEMP_RISE_RATE;
+            const secLeft = Math.max(0, framesLeft / 60).toFixed(1);
+
+            this.overheatWarningText.setText(
+                this.palmTemp >= 95 ?
+                    `CRITICAL EXPOSURE\nMELTDOWN IN ${secLeft}s` :
+                    `WARNING: HIGH TEMP\nFAILURE IN ${secLeft}s`
+            );
         } else {
             this.overheatWarningText.setVisible(false);
         }
