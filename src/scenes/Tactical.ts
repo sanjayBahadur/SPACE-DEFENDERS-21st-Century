@@ -46,8 +46,8 @@ export class Tactical extends Phaser.Scene {
     // Overheat Mechanic
     private palmTemp: number = 0;
     private readonly TEMP_MAX = 100;
-    private readonly TEMP_RISE_RATE = 0.9; // ~1.8 seconds to overheat
-    private readonly TEMP_COOL_RATE = 0.4; // Faster cool down too? Let's keep smooth.
+    private readonly TEMP_RISE_RATE = 2.5; // Very fast overheat (~0.7s)
+    private readonly TEMP_COOL_RATE = 0.5;
     private tempBar!: Phaser.GameObjects.Rectangle;
     private tempBarBg!: Phaser.GameObjects.Rectangle;
     private overheatWarningText!: Phaser.GameObjects.Text;
@@ -127,13 +127,15 @@ export class Tactical extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Background for temp bar
-        // Background for temp bar
-        // STRICTLY defined height for container.
-        this.tempBarBg = this.add.rectangle(vw - 30, vh / 2, 14, 104, 0x110505);
+        // Anchor BOTH at the bottom to prevent spill alignment issues
+        const barBottomY = vh / 2 + 52;
+        this.tempBarBg = this.add.rectangle(vw - 30, barBottomY, 14, 104, 0x110505);
         this.tempBarBg.setStrokeStyle(2, 0x552222);
+        this.tempBarBg.setOrigin(0.5, 1);
 
         // The bar itself (growing from bottom)
-        this.tempBar = this.add.rectangle(vw - 30, vh / 2 + 50, 8, 0, 0x00ff00);
+        // 2px padding from bottom (stroke)
+        this.tempBar = this.add.rectangle(vw - 30, barBottomY - 2, 8, 0, 0x00ff00);
         this.tempBar.setOrigin(0.5, 1); // Grow upwards
 
         // Warning Text
@@ -157,10 +159,6 @@ export class Tactical extends Phaser.Scene {
         this.events.on('shutdown', () => {
             this.game.events.off('PILOT_GAME_OVER', this.gameOver, this);
         });
-
-        // Pause Keys only
-        this.input.keyboard!.on('keydown-P', () => this.pauseGame());
-        this.input.keyboard!.on('keydown-ESC', () => this.pauseGame());
 
         // Pause Keys
         this.input.keyboard!.on('keydown-P', () => this.pauseGame());
@@ -415,7 +413,14 @@ export class Tactical extends Phaser.Scene {
         // We use 98 as max bar height to leave 1px gap top/bottom.
         const maxBarHeight = 98;
         const barHeight = (this.palmTemp / 100) * maxBarHeight;
+
+        // Explicitly set height and ensure anchor is correct every frame
         this.tempBar.height = barHeight;
+        this.tempBar.setOrigin(0.5, 1);
+
+        // Re-align to bottom anchor every frame to be safe
+        const barBottomY = vh / 2 + 52;
+        this.tempBar.y = barBottomY - 2;
 
         // Color Stages & Effects
         if (this.palmTemp < 40) this.tempBar.setFillStyle(0x00ff00);
