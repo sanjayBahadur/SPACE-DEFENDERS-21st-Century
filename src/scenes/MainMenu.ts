@@ -170,7 +170,10 @@ export class MainMenu extends Phaser.Scene {
         const mainBtns = [
             {
                 text: 'START MISSION', cb: () => {
-                    this.registry.set('manualKeyboardOverride', false); // Reset auto-pause safety
+                    // Reset auto-pause safety, unless we are in implicit/explicit Keyboard Mode
+                    const isKbMode = this.registry.get('keyboardMode') === true;
+                    this.registry.set('manualKeyboardOverride', isKbMode);
+
                     this.scene.start('Strategic');
                     this.scene.launch('Tactical');
                 }

@@ -11,12 +11,6 @@ import { HandTracker } from './services/HandTracker';
 // Initialize HandTracker
 const handTracker = new HandTracker();
 // Start tracking immediately (camera permissions will be requested)
-handTracker.init().then(() => {
-  console.log('HandTracker initialized');
-}).catch(err => {
-  console.error('HandTracker failed to initialize:', err);
-});
-
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   width: 1280,
@@ -33,11 +27,21 @@ const config: Phaser.Types.Core.GameConfig = {
   // Boot scene launches the others
   scene: [Boot, MainMenu, Strategic, Tactical, Credits, PauseScene],
   callbacks: {
-    postBoot: (game) => {
+    postBoot: (gameInstance) => {
       // Expose tracker to scenes via registry
-      game.registry.set('handTracker', handTracker);
+      gameInstance.registry.set('handTracker', handTracker);
     }
   }
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// Start tracking immediately (camera permissions will be requested)
+handTracker.init().then(() => {
+  console.log('HandTracker initialized');
+}).catch(err => {
+  console.error('HandTracker failed to initialize - Falling back to Keyboard Mode', err);
+  // Auto-enable Keyboard Mode if camera fails
+  game.registry.set('keyboardMode', true);
+  game.registry.set('manualKeyboardOverride', true);
+});
