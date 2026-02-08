@@ -81,8 +81,10 @@ export class MainMenu extends Phaser.Scene {
                 <div class="crawl-title">GAME INSTRUCTIONS</div>
                 <div class="crawl-subtitle">Mastering Space Defenders is all about choosing your favorite way to fly!</div>
                 <div class="crawl-body">
-                    <p>For the ultimate immersive experience, try Hand Gesture controls! Simply hold your left hand in a fist to move your ship and release a fist to stop. To attack, make a finger gun with your right hand and flick your thumb to fire basic shots, or clench that same hand into a fist to unleash the powerful Fist Cannon.</p>
-                    <p>If you prefer a classic setup, you can also use your Keyboard (WASD or Arrow Keys) to navigate and your Mouse to blast enemies. Use Left Click for standard shots and Right Click for the Fist Cannon. Whether you are using your hands or your hardware, the galaxy is counting on you.</p>
+                    <p>For the ultimate immersive experience, try Hand Gesture controls! Simply hold your left hand in a fist to move your ship and release a fist to stop.</p>
+                    <p>To attack, make a finger gun with your right hand and flick your thumb to fire basic shots, or clench that same hand into a fist to unleash the powerful Fist Cannon.</p>
+                    <p>If you prefer a classic setup, you can also use your Keyboard (WASD or Arrow Keys) to navigate and your Mouse to blast enemies. Use Left Click for standard shots and Right Click for the Fist Cannon.</p>
+                    <p>Whether you are using your hands or your hardware, the galaxy is counting on you.</p>
                 </div>
             </div>
         `;
