@@ -27,7 +27,6 @@ export class Tactical extends Phaser.Scene {
     private lockCountText!: Phaser.GameObjects.Text;
     private livesText!: Phaser.GameObjects.Text;
     private debugText!: Phaser.GameObjects.Text;
-    private gameOverText!: Phaser.GameObjects.Text;
 
     // Cockpit Frame
     private cockpitFrame!: Phaser.GameObjects.Graphics;
@@ -49,6 +48,15 @@ export class Tactical extends Phaser.Scene {
     }
 
     create() {
+        // Reset State
+        this.isGameOver = false;
+        this.shieldLevel = 100;
+        this.score = 0;
+        this.lives = 3;
+        this.lockedTarget = null;
+        this.isPalmCannonActive = false;
+        this.palmCannonSprite = null;
+
         const width = this.scale.width;
         const height = this.scale.height;
         const vw = width / 2;
@@ -100,9 +108,11 @@ export class Tactical extends Phaser.Scene {
 
         this.debugText = this.add.text(25, 48, '', { fontSize: '9px', color: '#333333' });
 
-        this.gameOverText = this.add.text(vw / 2, vh / 2, 'GAME OVER', {
-            fontSize: '40px', color: '#ff0000', fontStyle: 'bold'
-        }).setOrigin(0.5).setVisible(false);
+        // Listen for Pilot Game Over
+        this.game.events.on('PILOT_GAME_OVER', this.gameOver, this);
+        this.events.on('shutdown', () => {
+            this.game.events.off('PILOT_GAME_OVER', this.gameOver, this);
+        });
 
         // Pause Button
         const pauseBtn = this.add.text(vw - 20, 20, 'II', {
@@ -813,9 +823,17 @@ export class Tactical extends Phaser.Scene {
     }
 
     private gameOver() {
+        if (this.isGameOver) return;
         this.isGameOver = true;
-        this.gameOverText.setVisible(true);
-        this.cameras.main.fade(3000, 0, 0, 0);
+
+        // Sync with Pilot
+        this.game.events.emit('GUNNER_GAME_OVER');
+
+        // Pause and Show Game Over
+        this.scene.pause();
+        if (!this.scene.isActive('GameOverScene')) {
+            this.scene.launch('GameOverScene');
+        }
     }
 
     private pauseGame(reason?: string) {

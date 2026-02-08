@@ -31,7 +31,6 @@ export class Strategic extends Phaser.Scene {
     // HUD
     private hullBar!: Phaser.GameObjects.Rectangle;
     private statusText!: Phaser.GameObjects.Text;
-    private gameOverText!: Phaser.GameObjects.Text;
 
     // Background
     private panelBg!: Phaser.GameObjects.Image;
@@ -42,6 +41,13 @@ export class Strategic extends Phaser.Scene {
     }
 
     create() {
+        // Reset State
+        this.isGameOver = false;
+        this.hullHealth = 100;
+        this.isGrabbing = false;
+        this.currentShipFrame = 1;
+        this.shipSpeedMultiplier = 1;
+
         const width = this.scale.width;
         const height = this.scale.height;
         const vw = width / 2;
@@ -81,9 +87,11 @@ export class Strategic extends Phaser.Scene {
         this.add.rectangle(90, vh - 42, 120, 8, 0x222244);
         this.hullBar = this.add.rectangle(90, vh - 42, 120, 8, 0x44aaff);
 
-        this.gameOverText = this.add.text(vw / 2, vh / 2, 'HULL BREACH', {
-            fontSize: '28px', color: '#ff4444', fontStyle: 'bold'
-        }).setOrigin(0.5).setVisible(false);
+        // Listen for Gunner Game Over
+        this.game.events.on('GUNNER_GAME_OVER', this.gameOver, this);
+        this.events.on('shutdown', () => {
+            this.game.events.off('GUNNER_GAME_OVER', this.gameOver, this);
+        });
 
         // Pause Button
         const pauseBtn = this.add.text(vw - 20, 20, 'II', {
@@ -589,10 +597,17 @@ export class Strategic extends Phaser.Scene {
     }
 
     private gameOver() {
+        if (this.isGameOver) return;
         this.isGameOver = true;
-        this.gameOverText.setVisible(true);
-        this.cameras.main.fade(3000, 0, 0, 0);
+
+        // Sync with Gunner
         this.game.events.emit('PILOT_GAME_OVER');
+
+        // Pause and Show Game Over
+        this.scene.pause();
+        if (!this.scene.isActive('GameOverScene')) {
+            this.scene.launch('GameOverScene');
+        }
     }
 
     private pauseGame(reason?: string) {

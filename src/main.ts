@@ -8,6 +8,8 @@ import { Credits } from './scenes/Credits';
 import { PauseScene } from './scenes/PauseScene';
 import { HandTracker } from './services/HandTracker';
 
+import { GameOverScene } from './scenes/GameOverScene';
+
 // Initialize HandTracker
 const handTracker = new HandTracker();
 // Start tracking immediately (camera permissions will be requested)
@@ -25,7 +27,7 @@ const config: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
   // Boot scene launches the others
-  scene: [Boot, MainMenu, Strategic, Tactical, Credits, PauseScene],
+  scene: [Boot, MainMenu, Strategic, Tactical, Credits, PauseScene, GameOverScene],
   callbacks: {
     postBoot: (gameInstance) => {
       // Expose tracker to scenes via registry
