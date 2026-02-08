@@ -43,6 +43,15 @@ export class Tactical extends Phaser.Scene {
     private isPalmCannonActive: boolean = false;
     private debugPalmCannon: boolean = false;
 
+    // Overheat Mechanic
+    private palmTemp: number = 0;
+    private readonly TEMP_MAX = 100;
+    private readonly TEMP_RISE_RATE = 0.5;
+    private readonly TEMP_COOL_RATE = 0.3;
+    private tempBar!: Phaser.GameObjects.Rectangle;
+    private tempBarBg!: Phaser.GameObjects.Rectangle;
+    private overheatWarningText!: Phaser.GameObjects.Text;
+
     constructor() {
         super('Tactical');
     }
@@ -56,6 +65,7 @@ export class Tactical extends Phaser.Scene {
         this.lockedTarget = null;
         this.isPalmCannonActive = false;
         this.palmCannonSprite = null;
+        this.palmTemp = 0;
 
         const width = this.scale.width;
         const height = this.scale.height;
@@ -105,6 +115,33 @@ export class Tactical extends Phaser.Scene {
 
         this.add.text(vw - 75, vh - 65, 'LIVES', { fontFamily: 'Courier', fontSize: '10px', color: '#666666' });
         this.livesText = this.add.text(vw - 75, vh - 50, '♥♥♥', { fontFamily: 'Courier', fontSize: '18px', color: '#ff4444' });
+
+        // === TEMPERATURE UI ===
+        this.add.text(vw - 30, vh / 2 - 60, 'TEMP', {
+            fontFamily: 'Courier', fontSize: '10px', color: '#666666'
+        }).setOrigin(0.5);
+
+        // Background for temp bar
+        this.tempBarBg = this.add.rectangle(vw - 30, vh / 2, 10, 100, 0x221111);
+        this.tempBarBg.setStrokeStyle(1, 0x442222);
+
+        // The bar itself (growing from bottom)
+        this.tempBar = this.add.rectangle(vw - 30, vh / 2 + 50, 8, 0, 0x00ff00);
+        this.tempBar.setOrigin(0.5, 1); // Grow upwards
+
+        // Warning Text
+        this.overheatWarningText = this.add.text(vw / 2, vh / 2 - 40, 'WARNING: OVERHEAT', {
+            fontFamily: 'Courier', fontSize: '20px', color: '#ff0000', fontStyle: 'bold'
+        }).setOrigin(0.5).setVisible(false);
+
+        // Blink tween for warning
+        this.tweens.add({
+            targets: this.overheatWarningText,
+            alpha: 0,
+            duration: 200,
+            yoyo: true,
+            repeat: -1
+        });
 
         this.debugText = this.add.text(25, 48, '', { fontSize: '9px', color: '#333333' });
 
@@ -341,6 +378,60 @@ export class Tactical extends Phaser.Scene {
         // Debug Override
         if (this.debugPalmCannon) {
             isFistActive = true;
+        }
+
+        // Temperature Logic
+        if (isFistActive) {
+            this.palmTemp += this.TEMP_RISE_RATE;
+            // Screen shake when hot
+            if (this.palmTemp > 70) {
+                this.cameras.main.shake(50, 0.0005 * (this.palmTemp - 60)); // Gentle rumble
+            }
+        } else {
+            this.palmTemp -= this.TEMP_COOL_RATE;
+        }
+
+        // Clamp Temp
+        this.palmTemp = Phaser.Math.Clamp(this.palmTemp, 0, 100);
+
+        // Update TI Bar
+        const barHeight = (this.palmTemp / 100) * 98; // 98px max height
+        this.tempBar.height = barHeight;
+
+        // Color Stages
+        if (this.palmTemp < 50) this.tempBar.setFillStyle(0x00ff00);
+        else if (this.palmTemp < 80) this.tempBar.setFillStyle(0xffff00);
+        else {
+            this.tempBar.setFillStyle(0xff0000);
+            // Particle Steam Effect? (Simple random dots for now)
+            if (Math.random() < 0.3) {
+                const p = this.add.rectangle(
+                    this.tempBar.x + Phaser.Math.Between(-5, 5),
+                    this.tempBar.y - barHeight,
+                    2, 2, 0xffaa00
+                );
+                this.tweens.add({
+                    targets: p,
+                    y: p.y - 20,
+                    alpha: 0,
+                    duration: 500,
+                    onComplete: () => p.destroy()
+                });
+            }
+        }
+
+        // Overheat Warning
+        if (this.palmTemp > 80) {
+            this.overheatWarningText.setVisible(true);
+            this.overheatWarningText.setText(this.palmTemp >= 95 ? "CRITICAL TEMP!" : "WARNING: OVERHEAT");
+        } else {
+            this.overheatWarningText.setVisible(false);
+        }
+
+        // GAME OVER CHECK
+        if (this.palmTemp >= 100) {
+            this.gameOver(); // Custom reason logic inside gameOver?
+            // For now, standard game over. The user will see the critical temp before death.
         }
 
         if (isFistActive) {
