@@ -49,7 +49,7 @@ export class Boot extends Phaser.Scene {
         this.load.image('shotV1_4', '/assets/shots/ShotV1.4.png');
 
         // Palm Cannon Shot
-        this.load.image('shotV2_1', '/assets/shots/Shotv2.1.png'); // Note lowercase 'v' in filename based on find_by_name
+        this.load.image('shotV2_1', '/assets/shots/ShotV2.1.png');
         this.load.image('shotV2_2', '/assets/shots/ShotV2.2.png');
         this.load.image('shotV2_3', '/assets/shots/ShotV2.3.png');
         this.load.image('shotV2_4', '/assets/shots/ShotV2.4.png');
@@ -63,8 +63,9 @@ export class Boot extends Phaser.Scene {
         this.load.image('explosionV2_1', '/assets/effects/ExplosionV2.1.png');
         this.load.image('explosionV2_2', '/assets/effects/ExplosionV2.2.png');
         this.load.image('explosionV2_3', '/assets/effects/ExplosionV2.3.png');
-        this.load.image('explosionV2_3', '/assets/effects/ExplosionV2.3.png');
         this.load.image('explosionV2_4', '/assets/effects/ExplosionV2.4.png');
+
+        this.load.image('pilotShield', '/assets/shield/ShieldV1.png');
 
         // === TITLE ASSET ===
         this.load.image('title', '/assets/titlescreen/SpaceDefenders.png');
