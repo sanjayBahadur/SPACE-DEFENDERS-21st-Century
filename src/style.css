@@ -145,3 +145,408 @@ body {
         opacity: 0;
     }
 }
+/* Shared native mission screens. Legacy crawl styles retained until menu migration. */
+:root {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: #e7edf6;
+  background: #060b13;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  overflow: hidden;
+}
+#app {
+  width: 100vw;
+  height: 100dvh;
+  background: #060b13;
+}
+canvas {
+  display: block;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+button:focus-visible {
+  outline: 3px solid #b9ddff;
+  outline-offset: 4px;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+button[hidden] {
+  display: none;
+}
+.game-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: auto;
+  padding: clamp(24px, 5vw, 72px);
+  display: flex;
+  align-items: safe center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 14% 26%, #122c493d, transparent 58%),
+    radial-gradient(ellipse at 85% 70%, #113f4433, transparent 50%), #060b13;
+}
+.game-screen:before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 21px 37px, #7894b6 60%, transparent),
+    radial-gradient(1px 1px at 114px 139px, #52687f 60%, transparent);
+  background-size:
+    217px 191px,
+    337px 271px;
+  opacity: 0.35;
+}
+.menu-layout {
+  position: relative;
+  width: min(1180px, 100%);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(32px, 5vw, 80px);
+  align-items: safe center;
+}
+.mission-intro .eyebrow {
+  display: flex;
+  gap: 24px;
+  align-items: safe center;
+}
+.eyebrow {
+  font:
+    600 11px/1.6 ui-monospace,
+    monospace;
+  letter-spacing: 2px;
+  color: #91abc8;
+  margin: 0 0 20px;
+}
+.eyebrow span {
+  white-space: nowrap;
+  color: #d4dfed;
+  border: 1px solid #344659;
+  border-radius: 4px;
+  padding: 3px 7px;
+  font-size: 10px;
+}
+.game-logo {
+  display: block;
+  width: min(310px, 90%);
+  height: auto;
+  margin: 20px 0 28px;
+}
+h1 {
+  font-size: clamp(32px, 4.4vw, 62px);
+  letter-spacing: -2px;
+  line-height: 1.08;
+  font-weight: 650;
+  margin: 0 0 24px;
+}
+h1 em {
+  font-style: normal;
+  color: #70c4d2;
+}
+h2 {
+  font-size: 25px;
+  letter-spacing: -0.6px;
+  margin: 0 0 22px;
+}
+h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+.lede {
+  max-width: 420px;
+  color: #a7b5c8;
+  font-size: 16px;
+  line-height: 1.7;
+  margin-bottom: 28px;
+}
+.mission-tags {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 38px;
+  font:
+    11px ui-monospace,
+    monospace;
+  color: #90a7c1;
+}
+.mission-tags span {
+  border-top: 1px solid #314153;
+  padding-top: 12px;
+}
+.command-card,
+.dialog-card {
+  background: #101b2aeb;
+  border: 1px solid #2a3b4e;
+  border-radius: 16px;
+  padding: clamp(24px, 3vw, 38px);
+  box-shadow: 0 24px 100px #0004;
+}
+.command-card .eyebrow {
+  margin-bottom: 8px;
+}
+.mode-options {
+  display: grid;
+  gap: 10px;
+}
+.mode {
+  border: 1px solid #324258;
+  border-radius: 9px;
+  padding: 14px 16px;
+  text-align: left;
+  background: #0b1422;
+  color: #e7edf6;
+}
+.mode strong,
+.mode span {
+  display: block;
+}
+.mode strong {
+  font-size: 14px;
+}
+.mode span {
+  font-size: 12px;
+  color: #9aacc1;
+  margin-top: 5px;
+}
+.mode:hover {
+  background: #1a2c41;
+}
+.mode.selected {
+  border-color: #6ba9de;
+  background: #172d43;
+  box-shadow: inset 3px 0 #77bfff;
+}
+.status {
+  color: #a6bad1;
+  font-size: 12px;
+  line-height: 1.6;
+  min-height: 38px;
+  margin: 14px 0 20px;
+}
+.controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  border-top: 1px solid #2d3c4e;
+  border-bottom: 1px solid #2d3c4e;
+  padding: 20px 0;
+  margin: 16px 0 24px;
+}
+.controls-grid p {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #c0cede;
+  margin: 0;
+}
+.controls-grid .gesture-hint {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #8da2bc;
+  margin-top: 10px;
+}
+kbd {
+  font:
+    11px ui-monospace,
+    monospace;
+  border: 1px solid #455b71;
+  border-radius: 3px;
+  padding: 2px 4px;
+  background: #0c1624;
+}
+.pilot-dot {
+  color: #8dbaff;
+  margin-right: 4px;
+}
+.gunner-dot {
+  color: #7bd9cf;
+  margin-right: 4px;
+}
+.primary,
+.secondary {
+  width: 100%;
+  border-radius: 8px;
+  padding: 15px 18px;
+  min-height: 48px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 650;
+}
+.primary {
+  background: #99d8e0;
+  color: #071821;
+  display: flex;
+  justify-content: space-between;
+  align-items: safe center;
+}
+.primary:hover {
+  background: #c0edf2;
+}
+.secondary {
+  background: #15263a;
+  border-color: #3b526c;
+  color: #dfeaf6;
+}
+.secondary:hover {
+  background: #243b55;
+}
+.text-button {
+  padding: 9px 0;
+  border: 0;
+  background: none;
+  color: #a4bcd5;
+  font-size: 12px;
+}
+.text-button:hover {
+  color: white;
+}
+.small-note {
+  font-size: 11px;
+  color: #8ca0b9;
+  line-height: 1.7;
+  margin: 12px 0 8px;
+}
+.compact-screen {
+  background: #050b14df;
+  backdrop-filter: blur(8px);
+}
+.dialog-card {
+  position: relative;
+  max-width: 660px;
+  width: 100%;
+}
+.dialog-card h1 {
+  font-size: 42px;
+}
+.dialog-card .lede {
+  max-width: none;
+}
+.dialog-actions {
+  display: grid;
+  gap: 12px;
+}
+.credits-card h3 {
+  margin-top: 26px;
+}
+.credits-card p {
+  color: #acbdd2;
+  line-height: 1.7;
+}
+.credits-card .primary {
+  margin-top: 32px;
+}
+progress {
+  width: 100%;
+  height: 12px;
+  accent-color: #99d8e0;
+  margin: 20px 0;
+}
+.startup {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  background: #060b13;
+  z-index: 20;
+  padding: 24px;
+}
+.startup p {
+  color: #a7b5c8;
+}
+.startup h1 {
+  font-size: 30px;
+}
+@media (max-width: 850px) {
+  .game-screen {
+    align-items: flex-start;
+    padding: 24px;
+  }
+  .menu-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    max-width: 570px;
+  }
+  .mission-intro h1 {
+    font-size: 38px;
+  }
+  .game-logo {
+    width: 220px;
+    margin: 16px 0;
+  }
+  .mission-tags {
+    display: none;
+  }
+  .mission-intro .lede {
+    margin-bottom: 0;
+  }
+  .command-card {
+    padding: 24px;
+  }
+  .compact-screen {
+    align-items: safe center;
+  }
+  .dialog-card h1 {
+    font-size: 34px;
+  }
+}
+@media (max-width: 420px) {
+  .controls-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .mission-intro .eyebrow {
+    gap: 12px;
+    font-size: 9px;
+  }
+  .dialog-card h1 {
+    font-size: 30px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+}
+
+.mission-stats {
+  display: flex;
+  gap: 48px;
+  margin: 30px 0;
+}
+.mission-stats dt {
+  font-size: 12px;
+  color: #a7b5c8;
+  margin-bottom: 8px;
+}
+.mission-stats dd {
+  margin: 0;
+  font:
+    600 30px ui-monospace,
+    monospace;
+  color: #99d8e0;
+}
