@@ -1,72 +1,43 @@
-import Phaser from 'phaser';
-
+import Phaser from "phaser";
+import { mountScreen } from "../ui/screens";
 export class GameOverScene extends Phaser.Scene {
-    constructor() {
-        super('GameOverScene');
-    }
-
-    create() {
-        const width = this.scale.width;
-        const height = this.scale.height;
-
-        // Semi-transparent dark overlay
-        this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
-
-        // Title
-        this.add.text(width / 2, height * 0.3, 'GAME OVER', {
-            fontFamily: '"Orbitron", "Impact", sans-serif',
-            fontSize: '64px',
-            color: '#FF4444',
-            align: 'center',
-            stroke: '#000000',
-            strokeThickness: 6
-        }).setOrigin(0.5);
-
-        // Retry Button
-        this.createButton(width / 2, height * 0.55, 'RETRY MISSION', () => {
-            this.scene.stop();
-            // Stop game scenes to reset them
-            this.scene.stop('Strategic');
-            this.scene.stop('Tactical');
-
-            // Restart them
-            this.scene.start('Strategic');
-            this.scene.launch('Tactical');
-        });
-
-        // Main Menu Button
-        this.createButton(width / 2, height * 0.7, 'RETURN TO MENU', () => {
-            this.scene.stop('Strategic');
-            this.scene.stop('Tactical');
-            this.scene.stop();
-            this.scene.start('MainMenu');
-        });
-    }
-
-    private createButton(x: number, y: number, text: string, callback: () => void) {
-        const container = this.add.container(x, y);
-
-        const textObj = this.add.text(0, 0, text, {
-            fontFamily: '"Century Gothic", Futura, sans-serif',
-            fontSize: '32px',
-            color: '#FFE81F',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        const hitArea = this.add.rectangle(0, 0, textObj.width + 60, textObj.height + 30, 0x000000, 0.001)
-            .setInteractive({ useHandCursor: true });
-
-        hitArea.on('pointerover', () => {
-            textObj.setColor('#FFFFFF');
-            textObj.setScale(1.1);
-        });
-        hitArea.on('pointerout', () => {
-            textObj.setColor('#FFE81F');
-            textObj.setScale(1.0);
-        });
-        hitArea.on('pointerdown', callback);
-
-        container.add([hitArea, textObj]);
-        return container;
-    }
+  constructor() {
+    super("GameOverScene");
+  }
+  create() {
+    const score = Math.max(0, Number(this.registry.get("missionScore")) || 0);
+    const seconds = Math.floor(
+      Math.max(0, Number(this.registry.get("missionSeconds")) || 0),
+    );
+    const duration = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+    const outcome =
+      this.registry.get("missionOutcome") === "Hull integrity lost"
+        ? "Hull integrity lost"
+        : "Gunner defenses breached";
+    const screen = mountScreen(
+      this,
+      `<section class="dialog-card">
+            <p class="eyebrow">MISSION REPORT</p><h1>Ship lost.<br><em>Return stronger.</em></h1>
+            <dl class="mission-stats"><div><dt>Score</dt><dd>${score.toLocaleString()}</dd></div><div><dt>Time survived</dt><dd>${duration}</dd></div></dl>
+            <p class="status">${outcome}</p>
+            <p class="lede">Use your shield to absorb hazards. Fire the cannon in bursts and let it cool between attacks.</p>
+            <div class="dialog-actions"><button id="retry" class="primary">Retry mission</button>
+            <button id="menu" class="secondary">Return to menu</button></div>
+        </section>`,
+      true,
+    );
+    const stopMission = () => {
+      this.scene.stop("Strategic");
+      this.scene.stop("Tactical");
+    };
+    screen.querySelector("#retry")!.addEventListener("click", () => {
+      stopMission();
+      this.scene.start("Strategic");
+      this.scene.launch("Tactical");
+    });
+    screen.querySelector("#menu")!.addEventListener("click", () => {
+      stopMission();
+      this.scene.start("MainMenu");
+    });
+  }
 }
