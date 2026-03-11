@@ -1,4 +1,4 @@
-import { HandLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+import type { HandLandmarker, HandLandmarkerResult, NormalizedLandmark } from '@mediapipe/tasks-vision';
 import type { HandData, Gesture } from '../types/HandGesture';
 import { OneEuroFilter } from '../utils/OneEuroFilter';
 
@@ -7,93 +7,243 @@ export interface HandsResult {
     gunner: HandData | null;
 }
 
+export type HandTrackerStatus = 'idle' | 'loading' | 'ready' | 'error';
+
 export class HandTracker {
     private handLandmarker: HandLandmarker | undefined;
-    private video: HTMLVideoElement;
-    private canvas: HTMLCanvasElement; // For debug drawing
-    private ctx: CanvasRenderingContext2D;
+    private video: HTMLVideoElement | undefined;
+    private canvas: HTMLCanvasElement | undefined;
+    private ctx: CanvasRenderingContext2D | null = null;
+    private stream: MediaStream | undefined;
+    private frameId: number | undefined;
+    private session = 0;
+    private initPromise: Promise<void> | undefined;
+    private cancelStartup: (() => void) | undefined;
+    private status: HandTrackerStatus = 'idle';
+    private error: string | null = null;
+    private debugVisible = false;
     private lastVideoTime = -1;
-    private results: any = undefined;
+    private results: HandLandmarkerResult | undefined;
+    private hands: HandsResult = { pilot: null, gunner: null };
 
-    // Filters for Pilot (Left Hand)
-    private pilotFilterX: OneEuroFilter;
-    private pilotFilterY: OneEuroFilter;
+    private pilotFilterX = new OneEuroFilter();
+    private pilotFilterY = new OneEuroFilter();
+    private gunnerFilterX = new OneEuroFilter();
+    private gunnerFilterY = new OneEuroFilter();
+    private lastGunnerThumbDist = -1;
+    private lastDetectionTime = 0;
 
-    // Filters for Gunner (Right Hand)
-    private gunnerFilterX: OneEuroFilter;
-    private gunnerFilterY: OneEuroFilter;
-
-    // State for Gunner Thumb Flick
-    private lastGunnerThumbDist: number = -1;
-    private lastDetectionTime: number = 0;
-
-    constructor() {
-        // Initialize Filters with minCutoff = 1.0, beta = 0.007, dCutoff = 1.0
-        this.pilotFilterX = new OneEuroFilter(1.0, 0.007, 1.0);
-        this.pilotFilterY = new OneEuroFilter(1.0, 0.007, 1.0);
-        this.gunnerFilterX = new OneEuroFilter(1.0, 0.007, 1.0);
-        this.gunnerFilterY = new OneEuroFilter(1.0, 0.007, 1.0);
-
-        // Create hidden video element
-        this.video = document.createElement('video');
-        this.video.autoplay = true;
-        this.video.playsInline = true;
-        this.video.style.display = 'none';
-        document.body.appendChild(this.video);
-
-        // Create debug canvas
-        this.canvas = document.createElement('canvas');
-        this.canvas.id = 'hand-debug-canvas';
-        this.canvas.style.position = 'absolute';
-        this.canvas.style.top = '0';
-        this.canvas.style.left = '0';
-        this.canvas.style.width = '100%';
-        this.canvas.style.height = '100%';
-        this.canvas.style.pointerEvents = 'none';
-        this.canvas.style.zIndex = '100'; // Ensure it is on top
-        document.body.appendChild(this.canvas);
-        this.ctx = this.canvas.getContext('2d')!;
+    getStatus(): HandTrackerStatus {
+        return this.status;
     }
 
-    async init(): Promise<void> {
-        try {
-            const vision = await FilesetResolver.forVisionTasks('/models');
-            this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+    getError(): string | null {
+        return this.error;
+    }
+
+    // Call only after the player chooses camera controls. Construction is inert.
+    init(): Promise<void> {
+        if (this.status === 'ready') return Promise.resolve();
+        if (this.initPromise) return this.initPromise;
+
+        const session = ++this.session;
+        this.status = 'loading';
+        this.error = null;
+        let timeoutId: ReturnType<typeof setTimeout>;
+        const timeout = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error(
+                'Camera setup took too long. Try again or use keyboard controls.'
+            )), 45000);
+        });
+
+        let cancelStartup: () => void;
+        const cancellation = new Promise<never>((_, reject) => {
+            cancelStartup = () => {
+                clearTimeout(timeoutId);
+                reject(new DOMException('Camera setup cancelled.', 'AbortError'));
+            };
+            this.cancelStartup = cancelStartup;
+        });
+        const initPromise = Promise.race([this.start(session), timeout, cancellation])
+            .catch((error: unknown) => {
+                if (session === this.session) {
+                    this.stop();
+                    this.status = 'error';
+                    this.error = this.describeError(error);
+                }
+                throw error;
+            })
+            .finally(() => {
+                clearTimeout(timeoutId);
+                if (this.initPromise === initPromise) this.initPromise = undefined;
+                if (this.cancelStartup === cancelStartup) this.cancelStartup = undefined;
+            });
+        this.initPromise = initPromise;
+        return initPromise;
+    }
+
+    private async start(session: number): Promise<void> {
+        if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+            throw new Error('Camera controls require HTTPS and a browser with camera support. Keyboard controls are available.');
+        }
+
+        // Permission comes first: a declined camera never downloads the ML runtime.
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+                facingMode: 'user',
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                frameRate: { ideal: 30, max: 30 },
+            },
+        });
+        if (session !== this.session) {
+            stream.getTracks().forEach(track => track.stop());
+            throw new DOMException('Camera setup cancelled.', 'AbortError');
+        }
+        this.stream = stream;
+        stream.getVideoTracks().forEach(track => {
+            track.addEventListener('ended', () => {
+                if (session !== this.session) return;
+                this.stop();
+                this.status = 'error';
+                this.error = 'The camera disconnected. Reconnect it and try again, or use keyboard controls.';
+            }, { once: true });
+        });
+
+        const video = document.createElement('video');
+        video.autoplay = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.hidden = true;
+        video.srcObject = stream;
+        document.body.appendChild(video);
+        this.video = video;
+
+        // Keep MediaPipe out of the initial game bundle and load it on demand.
+        const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision');
+        this.assertSession(session);
+        const modelBase = `${import.meta.env.BASE_URL}models`;
+        const vision = await FilesetResolver.forVisionTasks(modelBase);
+        this.assertSession(session);
+        const createLandmarker = async (delegate: 'GPU' | 'CPU') => {
+            const landmarker = await HandLandmarker.createFromOptions(vision, {
                 baseOptions: {
-                    modelAssetPath: '/models/hand_landmarker.task',
-                    delegate: 'GPU',
+                    modelAssetPath: `${modelBase}/hand_landmarker.task`,
+                    delegate,
                 },
                 runningMode: 'VIDEO',
                 numHands: 2,
             });
-
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            this.video.srcObject = stream;
-
-            return new Promise<void>((resolve) => {
-                this.video.addEventListener('loadeddata', () => {
-                    this.canvas.width = this.video.videoWidth;
-                    this.canvas.height = this.video.videoHeight;
-                    this.detectLoop();
-                    resolve();
-                });
-            });
-        } catch (e) {
-            console.error('HandTracker Init Error:', e);
-            throw e;
+            if (session !== this.session) {
+                landmarker.close();
+                this.assertSession(session);
+            }
+            return landmarker;
+        };
+        try {
+            this.handLandmarker = await createLandmarker('GPU');
+        } catch (error) {
+            this.assertSession(session);
+            // WebGL is unavailable on some devices; CPU inference remains usable.
+            if (error instanceof DOMException && error.name === 'AbortError') throw error;
+            this.handLandmarker = await createLandmarker('CPU');
         }
+        this.assertSession(session);
+        await video.play();
+        this.assertSession(session);
+        this.status = 'ready';
+        this.setDebugVisible(this.debugVisible);
+        this.detectLoop();
     }
 
-    getHands(): HandsResult {
+    private assertSession(session: number): void {
+        if (session !== this.session) throw new DOMException('Camera setup cancelled.', 'AbortError');
+    }
+
+    stop(): void {
+        ++this.session;
+        this.cancelStartup?.();
+        this.cancelStartup = undefined;
+        this.initPromise = undefined;
+        if (this.frameId !== undefined) cancelAnimationFrame(this.frameId);
+        this.frameId = undefined;
+        this.stream?.getTracks().forEach(track => track.stop());
+        this.stream = undefined;
+        if (this.video) {
+            this.video.pause();
+            this.video.srcObject = null;
+            this.video.remove();
+            this.video = undefined;
+        }
+        this.handLandmarker?.close();
+        this.handLandmarker = undefined;
+        this.canvas?.remove();
+        this.canvas = undefined;
+        this.ctx = null;
+        this.results = undefined;
+        this.hands = { pilot: null, gunner: null };
+        this.lastVideoTime = -1;
+        this.lastDetectionTime = 0;
+        this.lastGunnerThumbDist = -1;
+        this.pilotFilterX = new OneEuroFilter();
+        this.pilotFilterY = new OneEuroFilter();
+        this.gunnerFilterX = new OneEuroFilter();
+        this.gunnerFilterY = new OneEuroFilter();
+        this.status = 'idle';
+        this.error = null;
+    }
+
+    setDebugVisible(visible: boolean): void {
+        this.debugVisible = visible;
+        if (!visible) {
+            this.canvas?.remove();
+            this.canvas = undefined;
+            this.ctx = null;
+            return;
+        }
+        if (!this.video || this.canvas) return;
+        this.canvas = document.createElement('canvas');
+        this.canvas.id = 'hand-debug-canvas';
+        this.canvas.setAttribute('aria-hidden', 'true');
+        Object.assign(this.canvas.style, {
+            position: 'absolute', top: '0', left: '0', width: '100%',
+            height: '100%', pointerEvents: 'none', zIndex: '100',
+        });
+        (document.getElementById('app') ?? document.body).appendChild(this.canvas);
+        this.ctx = this.canvas.getContext('2d');
+    }
+
+    private describeError(error: unknown): string {
+        if (error instanceof DOMException) {
+            if (error.name === 'NotAllowedError') return 'Camera permission was declined. Allow camera access to try again, or use keyboard controls.';
+            if (error.name === 'NotFoundError') return 'No camera was found. Connect a camera or use keyboard controls.';
+            if (error.name === 'NotReadableError') return 'The camera is busy or unavailable. Close other camera apps and try again.';
+        }
+        return error instanceof Error ? error.message : 'Camera controls could not start. Try again or use keyboard controls.';
+    }
+
+    getHands(consumeFlick = false): HandsResult {
+        if (this.status !== 'ready' || performance.now() - this.lastDetectionTime > 250) {
+            return { pilot: null, gunner: null };
+        }
+        // A thumb flick is an event, consumed once even when rendering at 60 FPS.
+        const hands = this.hands;
+        if (consumeFlick && hands.gunner?.flickDetected) {
+            this.hands = { ...hands, gunner: { ...hands.gunner, flickDetected: false } };
+        }
+        return hands;
+    }
+
+    private updateHands(now: number): HandsResult {
         const result: HandsResult = { pilot: null, gunner: null };
         if (!this.results || !this.results.landmarks) return result;
-
-        const now = performance.now();
 
         // Iterate over detected hands
         for (let i = 0; i < this.results.landmarks.length; i++) {
             const landmarks = this.results.landmarks[i];
-            const handedness = this.results.handedness[i][0];
+            const handedness = this.results.handedness[i]?.[0];
+            if (!handedness || landmarks.length < 21) continue;
             const detectedCategory = handedness.categoryName;
             // In MediaPipe with front camera, "Left" usually refers to the left hand of the person 
             // (which appears on the Right side of the screen if unmirrored). 
@@ -164,7 +314,7 @@ export class HandTracker {
                 const indexBase = landmarks[5]; // Index MCP
                 const currentDist = this.distance(thumbTip, indexBase);
 
-                if (this.lastGunnerThumbDist !== -1) {
+                if (this.lastGunnerThumbDist > 0.001) {
                     const delta = currentDist - this.lastGunnerThumbDist;
                     const percentChange = delta / this.lastGunnerThumbDist;
 
@@ -194,40 +344,45 @@ export class HandTracker {
                 };
             }
         }
+        if (!result.gunner) this.lastGunnerThumbDist = -1;
         return result;
     }
 
-    private detectLoop() {
+    private detectLoop(): void {
+        if (this.status !== 'ready' || !this.video || !this.handLandmarker) return;
         const now = performance.now();
-        // Throttle to ~30 FPS (33ms)
-        if (now - this.lastDetectionTime < 33) {
-            requestAnimationFrame(() => this.detectLoop());
-            return;
-        }
-
-        if (this.handLandmarker && this.video.currentTime !== this.lastVideoTime) {
-            this.lastDetectionTime = now;
-            this.lastVideoTime = this.video.currentTime;
-            this.results = this.handLandmarker.detectForVideo(this.video, now);
-
-            // Draw debug
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            this.ctx.save();
-            // Mirror the context so drawing matches the mirrored gameplay
-            this.ctx.scale(-1, 1);
-            this.ctx.translate(-this.canvas.width, 0);
-
-            if (this.results.landmarks) {
-                for (const landmarks of this.results.landmarks) {
-                    this.drawWireframeHand(landmarks);
+        // Inference is synchronous; avoid processing duplicate frames or hidden tabs.
+        if (!document.hidden && now - this.lastDetectionTime >= 1000 / 30 &&
+            this.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+            this.video.currentTime !== this.lastVideoTime) {
+            try {
+                this.lastDetectionTime = now;
+                this.lastVideoTime = this.video.currentTime;
+                this.results = this.handLandmarker.detectForVideo(this.video, now);
+                this.hands = this.updateHands(now);
+                if (this.canvas && this.ctx) {
+                    if (this.canvas.width !== this.video.videoWidth || this.canvas.height !== this.video.videoHeight) {
+                        this.canvas.width = this.video.videoWidth;
+                        this.canvas.height = this.video.videoHeight;
+                    }
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.save();
+                    this.ctx.scale(-1, 1);
+                    this.ctx.translate(-this.canvas.width, 0);
+                    for (const landmarks of this.results.landmarks) this.drawWireframeHand(landmarks);
+                    this.ctx.restore();
                 }
+            } catch (error) {
+                this.stop();
+                this.status = 'error';
+                this.error = this.describeError(error);
+                return;
             }
-            this.ctx.restore();
         }
-        requestAnimationFrame(() => this.detectLoop());
+        this.frameId = requestAnimationFrame(() => this.detectLoop());
     }
 
-    private detectGesture(landmarks: any[]): Gesture {
+    private detectGesture(landmarks: NormalizedLandmark[]): Gesture {
         // 0: Wrist
         // 4: Thumb Tip
         // 8: Index Tip
@@ -299,7 +454,8 @@ export class HandTracker {
         return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
     }
 
-    private drawWireframeHand(landmarks: any[]) {
+    private drawWireframeHand(landmarks: NormalizedLandmark[]) {
+        if (!this.canvas || !this.ctx) return;
         const w = this.canvas.width;
         const h = this.canvas.height;
 
