@@ -25,7 +25,7 @@ export function mountScreen(
 
 export function controlsMarkup() {
   return `<div class="controls-grid">
-        <div><h3><span class="pilot-dot">01</span> Pilot · left view</h3><p><kbd>W A S D</kbd> / arrows to move<br><kbd>Shift</kbd> hold shield</p><p class="gesture-hint">Left hand: fist to move, open palm to shield.</p></div>
+        <div><h3><span class="pilot-dot">01</span> Pilot · left view</h3><p><kbd>W A S D</kbd> / arrows to move</p><p class="gesture-hint">Left hand: fist to move, release to hold position.</p></div>
         <div><h3><span class="gunner-dot">02</span> Gunner · right view</h3><p>Mouse to aim · click to fire<br><kbd>Space</kbd> / right click: hold cannon</p><p class="gesture-hint">Right hand: point to aim, flick thumb to fire, fist for cannon.</p></div>
     </div>`;
 }

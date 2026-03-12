@@ -220,12 +220,6 @@ export class MissionLoad extends Phaser.Scene {
       "explosionV2_4",
       `${import.meta.env.BASE_URL}assets/effects/ExplosionV2.4.webp`,
     );
-
-    // === TITLE ASSET ===
-    this.load.image(
-      "pilotShield",
-      `${import.meta.env.BASE_URL}assets/shield/ShieldV1.webp`,
-    );
   }
 
   create() {

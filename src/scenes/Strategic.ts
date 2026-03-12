@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { HandTracker } from '../services/HandTracker';
-import { absorbDamage, advanceShield, frameLerp, type ShieldState } from '../utils/combat';
+import { frameLerp } from '../utils/combat';
 
 export class Strategic extends Phaser.Scene {
     // Ship
@@ -29,12 +29,6 @@ export class Strategic extends Phaser.Scene {
         right: Phaser.Input.Keyboard.Key;
     };
 
-    private shield: ShieldState = { energy: 100, rechargeDelay: 0, exhausted: false, active: false };
-    private shieldKey!: Phaser.Input.Keyboard.Key;
-    private shieldSprite!: Phaser.GameObjects.Sprite;
-    private shieldBar!: Phaser.GameObjects.Rectangle;
-    private shieldText!: Phaser.GameObjects.Text;
-
     // HUD
     private hullBar!: Phaser.GameObjects.Rectangle;
     private statusText!: Phaser.GameObjects.Text;
@@ -57,7 +51,6 @@ export class Strategic extends Phaser.Scene {
         this.isGrabbing = false;
         this.currentShipFrame = 1;
         this.shipSpeedMultiplier = 1;
-        this.shield = { energy: 100, rechargeDelay: 0, exhausted: false, active: false };
         this.lastHandTime = this.time.now;
         this.stars = [];
 
@@ -99,11 +92,6 @@ export class Strategic extends Phaser.Scene {
         this.add.text(20, vh - 55, 'HULL', { fontFamily: 'Courier', fontSize: '14px', color: '#446688' });
         this.add.rectangle(90, vh - 42, 120, 8, 0x222244);
         this.hullBar = this.add.rectangle(90, vh - 42, 120, 8, 0x44aaff);
-        this.shieldText = this.add.text(20, vh - 105, 'SHIELD 100% · SHIFT / PALM', {
-            fontFamily: 'Courier', fontSize: '14px', color: '#8ecaff'
-        });
-        this.add.rectangle(90, vh - 78, 120, 8, 0x222244);
-        this.shieldBar = this.add.rectangle(30, vh - 78, 120, 8, 0x5be4b9).setOrigin(0, 0.5);
 
         // Listen for Gunner Game Over
         this.game.events.on('GUNNER_GAME_OVER', this.gameOver, this);
@@ -135,7 +123,6 @@ export class Strategic extends Phaser.Scene {
         this.ship = this.add.sprite(cx, cy, 'pilotship1');
         this.ship.setScale(0.15);
         this.ship.setDepth(10);
-        this.shieldSprite = this.add.sprite(cx, cy, 'pilotShield').setDisplaySize(120, 120).setDepth(11).setVisible(false);
 
         // === GROUPS ===
         this.meteors = this.add.group();
@@ -213,7 +200,6 @@ export class Strategic extends Phaser.Scene {
         // Pause Keys
         this.input.keyboard!.on('keydown-P', this.onPauseKey, this);
         this.input.keyboard!.on('keydown-ESC', this.onPauseKey, this);
-        this.shieldKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
         this.children.each(child => {
             if (child instanceof Phaser.GameObjects.Text || child instanceof Phaser.GameObjects.Rectangle) child.setDepth(40);
         });
@@ -302,10 +288,6 @@ export class Strategic extends Phaser.Scene {
             this.statusText.setText('WASD / ARROWS TO MOVE').setColor('#8ecaff');
         }
 
-        const shieldRequested = hands.pilot?.gesture === 'PALM' || (useKeyboard && this.shieldKey.isDown);
-        this.shield = advanceShield(this.shield, shieldRequested, delta);
-        this.updateShieldHud(shieldRequested);
-
         // Reset speed multiplier (black holes will modify it)
         this.shipSpeedMultiplier = 1;
 
@@ -356,8 +338,6 @@ export class Strategic extends Phaser.Scene {
         const lerpFactor = frameLerp(baseLerp * this.shipSpeedMultiplier, delta);
         this.ship.x = Phaser.Math.Linear(this.ship.x, this.shipTarget.x, lerpFactor);
         this.ship.y = Phaser.Math.Linear(this.ship.y, this.shipTarget.y, lerpFactor);
-
-        this.shieldSprite.setPosition(this.ship.x, this.ship.y).setVisible(this.shield.active);
 
         // Ship rotation
         const moveDx = this.shipTarget.x - this.ship.x;
@@ -599,11 +579,6 @@ export class Strategic extends Phaser.Scene {
 
     private takeDamage(amount: number) {
         if (this.isGameOver) return;
-        const hit = absorbDamage(this.shield, amount);
-        this.shield = hit.shield;
-        this.updateShieldHud(this.shield.active || this.shield.exhausted);
-        if (hit.hullDamage === 0) return;
-        amount = hit.hullDamage;
         this.hullHealth -= amount;
         if (this.hullHealth < 0) this.hullHealth = 0;
 
@@ -661,13 +636,6 @@ export class Strategic extends Phaser.Scene {
 
     private createAnimation(config: Phaser.Types.Animations.Animation) {
         if (config.key && !this.anims.exists(config.key)) this.anims.create(config);
-    }
-
-    private updateShieldHud(requested: boolean) {
-        this.shieldBar.width = this.shield.energy * 1.2;
-        const status = this.shield.active ? 'ACTIVE' : this.shield.exhausted && requested ? 'RELEASE TO RECHARGE' : this.shield.energy < 100 ? 'RECHARGING' : 'SHIFT / PALM';
-        this.shieldText.setText(`SHIELD ${Math.ceil(this.shield.energy)}% · ${status}`);
-        this.shieldBar.setFillStyle(this.shield.active ? 0x5be4b9 : this.shield.energy < 25 ? 0xffba66 : 0x8ecaff);
     }
 
     private emitHull() {
