@@ -22,6 +22,7 @@ function mockCamera(t: TestContext, getUserMedia: () => Promise<MediaStream>, se
 
 interface TrackerState {
     status: HandTrackerStatus;
+    debugVisible: boolean;
     lastDetectionTime: number;
     hands: HandsResult;
     stream?: MediaStream;
@@ -39,6 +40,7 @@ test('constructing a tracker never requests the camera or starts browser work', 
     mockCamera(t, () => assert.fail('Construction requested camera permission'));
     const tracker = new HandTracker();
     assert.equal(tracker.getStatus(), 'idle');
+    assert.equal(state(tracker).debugVisible, true, 'Gesture skeleton feedback is enabled by default');
     assert.equal(tracker.getError(), null);
     assert.deepEqual(tracker.getHands(), { pilot: null, gunner: null });
     tracker.stop();
@@ -171,4 +173,35 @@ test('stale tracking does not return movement or consume a flick', () => {
     });
     assert.deepEqual(tracker.getHands(true), { pilot: null, gunner: null });
     assert.equal(state(tracker).hands.gunner?.flickDetected, true);
+});
+
+test('default skeleton overlay mounts after video setup and never intercepts game input', t => {
+    const tracker = new HandTracker();
+    const canvas = {
+        id: '', style: {},
+        setAttribute: (name: string, value: string) => assert.deepEqual([name, value], ['aria-hidden', 'true']),
+        getContext: () => ({}),
+        remove: () => { removed++; },
+    };
+    let mounted = 0;
+    let removed = 0;
+    replaceGlobal(t, 'document', {
+        createElement: (tag: string) => { assert.equal(tag, 'canvas'); return canvas; },
+        getElementById: (id: string) => {
+            assert.equal(id, 'app');
+            return { appendChild: (element: unknown) => { assert.equal(element, canvas); mounted++; } };
+        },
+    });
+    Object.assign(state(tracker), { status: 'ready', video: {} });
+    tracker.setDebugVisible(state(tracker).debugVisible);
+    assert.equal(mounted, 1);
+    assert.equal(canvas.id, 'hand-debug-canvas');
+    assert.equal((canvas.style as { pointerEvents: string }).pointerEvents, 'none');
+    tracker.setDebugVisible(true);
+    assert.equal(mounted, 1, 'Repeated enable must reuse the existing overlay');
+    tracker.setDebugVisible(false);
+    assert.equal(removed, 1);
+    assert.equal(state(tracker).canvas, undefined);
+    tracker.setDebugVisible(true);
+    assert.equal(mounted, 2, 'Players can restore skeleton feedback');
 });

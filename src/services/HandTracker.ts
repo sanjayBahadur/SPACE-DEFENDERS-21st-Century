@@ -21,7 +21,7 @@ export class HandTracker {
     private cancelStartup: (() => void) | undefined;
     private status: HandTrackerStatus = 'idle';
     private error: string | null = null;
-    private debugVisible = false;
+    private debugVisible = true;
     private lastVideoTime = -1;
     private results: HandLandmarkerResult | undefined;
     private hands: HandsResult = { pilot: null, gunner: null };
