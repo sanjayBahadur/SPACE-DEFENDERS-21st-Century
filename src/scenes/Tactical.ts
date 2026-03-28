@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { HandTracker } from '../services/HandTracker';
+import { applyHullHit } from '../utils/hull';
 import { advanceCannon, CANNON_COOL_PER_SECOND, CANNON_HEAT_PER_SECOND, frameLerp } from '../utils/combat';
 
 export class Tactical extends Phaser.Scene {
@@ -16,6 +17,7 @@ export class Tactical extends Phaser.Scene {
     private isGameOver: boolean = false;
     private wasPointerDown: boolean = false;
     private lastHandTime: number = 0;
+    private damageProtectedUntil = 0;
 
     // Entity Groups
     private enemies!: Phaser.GameObjects.Group;
@@ -25,6 +27,7 @@ export class Tactical extends Phaser.Scene {
     private lockStatusText!: Phaser.GameObjects.Text;
     private scoreText!: Phaser.GameObjects.Text;
     private shieldBar!: Phaser.GameObjects.Rectangle;
+    private defensesText!: Phaser.GameObjects.Text;
     private lockCountText!: Phaser.GameObjects.Text;
     private livesText!: Phaser.GameObjects.Text;
     private debugText!: Phaser.GameObjects.Text;
@@ -71,6 +74,7 @@ export class Tactical extends Phaser.Scene {
         this.lastFlickTime = -Infinity;
         this.wasPointerDown = false;
         this.lastHandTime = this.time.now;
+        this.damageProtectedUntil = 0;
         this.stars = [];
 
         const width = this.scale.width;
@@ -117,14 +121,14 @@ export class Tactical extends Phaser.Scene {
         }).setOrigin(1, 0);
 
         // Bottom Left Lock/Ship Count (moved from Top Right)
-        this.add.text(25, vh - 65, 'ENEMIES', { fontFamily: 'Courier', fontSize: '14px', color: '#666666' });
+        this.add.text(25, vh - 72, 'ENEMIES', { fontFamily: 'Courier', fontSize: '14px', color: '#666666' });
         this.lockCountText = this.add.text(25, vh - 50, '000', { fontFamily: 'Courier', fontSize: '18px', color: '#ff6666' });
 
-        this.add.text(vw / 2 - 50, vh - 65, 'SHIELDS', { fontFamily: 'Courier', fontSize: '14px', color: '#666666' });
+        this.defensesText = this.add.text(vw / 2 - 50, vh - 72, 'DEFENSES 100%', { fontFamily: 'Courier', fontSize: '14px', color: '#ffaaaa' });
         this.add.rectangle(vw / 2, vh - 48, 100, 10, 0x331111);
         this.shieldBar = this.add.rectangle(vw / 2, vh - 48, 100, 10, 0xff3333);
 
-        this.add.text(vw - 75, vh - 65, 'LIVES', { fontFamily: 'Courier', fontSize: '14px', color: '#666666' });
+        this.add.text(vw - 75, vh - 72, 'LIVES', { fontFamily: 'Courier', fontSize: '14px', color: '#666666' });
         this.livesText = this.add.text(vw - 75, vh - 50, '♥♥♥', { fontFamily: 'Courier', fontSize: '18px', color: '#ff4444' });
 
         // === TEMPERATURE UI ===
@@ -567,8 +571,7 @@ export class Tactical extends Phaser.Scene {
             missile.rotation += 0.05 * frame;
 
             if (missile.scale > 2.5) {
-                this.takeDamage();
-                this.createImpact(missile.x, missile.y);
+                if (this.takeDamage()) this.createImpact(missile.x, missile.y);
                 missile.destroy();
             }
         });
@@ -759,13 +762,15 @@ export class Tactical extends Phaser.Scene {
         this.cameras.main.shake(150, 0.018);
     }
 
-    private takeDamage() {
-        if (this.isGameOver) return;
-        this.shieldLevel -= 25;
-        if (this.shieldLevel < 0) this.shieldLevel = 0;
+    private takeDamage(): boolean {
+        if (this.isGameOver) return false;
+        const hit = applyHullHit({ health: this.shieldLevel, protectedUntil: this.damageProtectedUntil }, 25, this.time.now);
+        if (hit.health === this.shieldLevel) return false;
+        this.shieldLevel = hit.health;
+        this.damageProtectedUntil = hit.protectedUntil;
 
         const barWidth = (this.shieldLevel / 100) * 100;
-        this.shieldBar.width = barWidth;
+        this.shieldBar.setSize(barWidth, 10);
         this.shieldBar.x = this.scale.width / 4 - (100 - barWidth) / 2;
 
         if (this.shieldLevel <= 40) this.shieldBar.setFillStyle(0xffaa00);
@@ -776,13 +781,15 @@ export class Tactical extends Phaser.Scene {
             this.updateLives();
             if (this.lives > 0) {
                 this.shieldLevel = 100;
-                this.shieldBar.width = 100;
+                this.shieldBar.setSize(100, 10);
                 this.shieldBar.x = this.scale.width / 4;
                 this.shieldBar.setFillStyle(0xff3333);
             } else {
                 this.gameOver();
             }
         }
+        this.defensesText.setText(`DEFENSES ${Math.ceil(this.shieldLevel)}%`);
+        return true;
     }
 
     private updateLives() {
