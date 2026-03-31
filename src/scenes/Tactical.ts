@@ -330,13 +330,13 @@ export class Tactical extends Phaser.Scene {
             const gunner = hands.gunner;
             const pilot = hands.pilot;
 
-            if (gunner || pilot) {
+            if (gunner) {
                 this.lastHandTime = _time;
 
                 // If hands are back, re-enable auto-pause safety
                 // UNLESS we are in explicit Keyboard Mode
                 const isKeyboardMode = this.registry.get('keyboardMode') === true;
-                if (!isKeyboardMode && this.registry.get('manualKeyboardOverride') === true) {
+                if (pilot && !isKeyboardMode && this.registry.get('manualKeyboardOverride') === true) {
                     this.registry.set('manualKeyboardOverride', false);
                     this.debugText.setText('HANDS DETECTED - SAFETY ON');
                 }
@@ -874,6 +874,6 @@ export class Tactical extends Phaser.Scene {
         this.registry.set('pausePending', true);
         this.scene.pause('Strategic');
         this.scene.pause();
-        this.scene.launch('PauseScene', { reason });
+        this.scene.launch('PauseScene', { reason, missingRole: reason === 'HAND_LOST' ? 'gunner' : undefined });
     }
 }
