@@ -1,5 +1,7 @@
 import Phaser from "phaser";
 import { mountScreen } from "../ui/screens";
+import { GestureMenuNavigator } from "../ui/GestureMenu";
+import type { HandTracker } from "../services/HandTracker";
 
 export class MissionLoad extends Phaser.Scene {
   constructor() {
@@ -7,6 +9,8 @@ export class MissionLoad extends Phaser.Scene {
   }
 
   private failed = false;
+  private gestureMenu?: GestureMenuNavigator;
+  private readonly tickLoadingMenu = () => this.gestureMenu?.tick();
   preload() {
     this.failed = false;
     const screen = mountScreen(
@@ -14,6 +18,21 @@ export class MissionLoad extends Phaser.Scene {
       `<section class="dialog-card"><p class="eyebrow">SYSTEMS CHECK</p><h1>Preparing your ship</h1><p id="load-status" role="status">Loading mission assets…</p><progress max="1" value="0" aria-label="Mission loading"></progress><p class="small-note">Assets stay cached for your next mission.</p><button id="retry-load" class="primary" hidden>Retry loading</button><button id="load-menu" class="secondary">Return to menu</button></section>`,
       true,
     );
+    const tracker = this.registry.get('handTracker') as HandTracker | undefined;
+    if (tracker && this.registry.get('keyboardMode') !== true) {
+      this.gestureMenu = new GestureMenuNavigator(this, tracker, () => [...screen.querySelectorAll<HTMLButtonElement>('button')]
+        .filter(button => !button.disabled && button.getClientRects().length > 0)
+        .map(button => {
+          const bounds = button.getBoundingClientRect();
+          return { id: button.id, bounds, activate: () => button.click() };
+        }));
+    }
+    // Scene update does not run during preload; keep gesture exits usable then.
+    this.game.events.on('step', this.tickLoadingMenu);
+    this.events.once('shutdown', () => {
+      this.game.events.off('step', this.tickLoadingMenu);
+      this.gestureMenu = undefined;
+    });
     const progress = screen.querySelector("progress")!;
     const status = screen.querySelector("#load-status")!;
     const retry = screen.querySelector<HTMLButtonElement>("#retry-load")!;
@@ -222,7 +241,10 @@ export class MissionLoad extends Phaser.Scene {
     );
   }
 
+  update() { this.gestureMenu?.tick(); }
+
   create() {
+    this.game.events.off('step', this.tickLoadingMenu);
     if (this.failed) return;
     this.scene.start("Strategic");
     this.scene.launch("Tactical");
