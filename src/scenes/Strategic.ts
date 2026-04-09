@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { HandTracker } from '../services/HandTracker';
 import { frameLerp } from '../utils/combat';
+import { PILOT_FOLLOW_AT_60_HZ } from '../utils/input';
 import {
     applyHullHit, applyHullExposure, BLACK_HOLE_DAMAGE_PER_SECOND,
     METEOR_HULL_DAMAGE, DEATH_RAY_HULL_DAMAGE, type HullState,
@@ -338,7 +339,7 @@ export class Strategic extends Phaser.Scene {
         this.shipTarget.y = Phaser.Math.Clamp(this.shipTarget.y, 30, vh - 30);
 
         // Ship Movement (affected by speed multiplier)
-        const baseLerp = this.isGrabbing ? 0.18 : 0.015;
+        const baseLerp = this.isGrabbing ? PILOT_FOLLOW_AT_60_HZ : 0.015;
         const lerpFactor = frameLerp(baseLerp * this.shipSpeedMultiplier, delta);
         this.ship.x = Phaser.Math.Linear(this.ship.x, this.shipTarget.x, lerpFactor);
         this.ship.y = Phaser.Math.Linear(this.ship.y, this.shipTarget.y, lerpFactor);

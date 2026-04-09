@@ -1,6 +1,6 @@
 import type { HandLandmarker, HandLandmarkerResult, NormalizedLandmark } from '@mediapipe/tasks-vision';
 import type { HandData, Gesture } from '../types/HandGesture';
-import { OneEuroFilter } from '../utils/OneEuroFilter';
+import { createHandMotionFilter } from '../utils/input';
 
 export interface HandsResult {
     pilot: HandData | null;
@@ -26,10 +26,10 @@ export class HandTracker {
     private results: HandLandmarkerResult | undefined;
     private hands: HandsResult = { pilot: null, gunner: null };
 
-    private pilotFilterX = new OneEuroFilter();
-    private pilotFilterY = new OneEuroFilter();
-    private gunnerFilterX = new OneEuroFilter();
-    private gunnerFilterY = new OneEuroFilter();
+    private pilotFilterX = createHandMotionFilter();
+    private pilotFilterY = createHandMotionFilter();
+    private gunnerFilterX = createHandMotionFilter();
+    private gunnerFilterY = createHandMotionFilter();
     private lastGunnerThumbDist = -1;
     private lastDetectionTime = 0;
     private lastHandsUpdateTime = 0;
@@ -188,10 +188,10 @@ export class HandTracker {
         this.lastDetectionTime = 0;
         this.lastHandsUpdateTime = 0;
         this.lastGunnerThumbDist = -1;
-        this.pilotFilterX = new OneEuroFilter();
-        this.pilotFilterY = new OneEuroFilter();
-        this.gunnerFilterX = new OneEuroFilter();
-        this.gunnerFilterY = new OneEuroFilter();
+        this.pilotFilterX = createHandMotionFilter();
+        this.pilotFilterY = createHandMotionFilter();
+        this.gunnerFilterX = createHandMotionFilter();
+        this.gunnerFilterY = createHandMotionFilter();
         this.status = 'idle';
         this.error = null;
     }
@@ -362,21 +362,22 @@ export class HandTracker {
     }
 
     private resetPilotMotion(): void {
-        this.pilotFilterX = new OneEuroFilter();
-        this.pilotFilterY = new OneEuroFilter();
+        this.pilotFilterX = createHandMotionFilter();
+        this.pilotFilterY = createHandMotionFilter();
     }
 
     private resetGunnerMotion(): void {
-        this.gunnerFilterX = new OneEuroFilter();
-        this.gunnerFilterY = new OneEuroFilter();
+        this.gunnerFilterX = createHandMotionFilter();
+        this.gunnerFilterY = createHandMotionFilter();
         this.lastGunnerThumbDist = -1;
     }
 
     private detectLoop(): void {
         if (this.status !== 'ready' || !this.video || !this.handLandmarker) return;
         const now = performance.now();
-        // Inference is synchronous; avoid processing duplicate frames or hidden tabs.
-        if (!document.hidden && now - this.lastDetectionTime >= 1000 / 30 &&
+        // The camera already limits delivery to 30 FPS. Process each new frame
+        // once; a second 33.33 ms gate can skip frames on a 60 Hz display.
+        if (!document.hidden &&
             this.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
             this.video.currentTime !== this.lastVideoTime) {
             try {
@@ -384,7 +385,7 @@ export class HandTracker {
                 this.lastVideoTime = this.video.currentTime;
                 this.results = this.handLandmarker.detectForVideo(this.video, now);
                 this.hands = this.updateHands(now);
-                if (this.canvas && this.ctx) {
+                if (this.debugVisible && this.canvas && this.ctx) {
                     if (this.canvas.width !== this.video.videoWidth || this.canvas.height !== this.video.videoHeight) {
                         this.canvas.width = this.video.videoWidth;
                         this.canvas.height = this.video.videoHeight;

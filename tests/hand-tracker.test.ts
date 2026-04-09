@@ -33,6 +33,7 @@ interface TrackerState {
     frameId?: number;
     results?: { landmarks: NormalizedLandmark[][]; handedness: { categoryName: string }[][] };
     updateHands(now: number): HandsResult;
+    detectLoop(): void;
 }
 
 function state(tracker: HandTracker): TrackerState {
@@ -280,4 +281,58 @@ test('default skeleton overlay mounts after video setup and never intercepts gam
     assert.equal(state(tracker).canvas, undefined);
     tracker.setDebugVisible(true);
     assert.equal(mounted, 2, 'Players can restore skeleton feedback');
+});
+
+
+test('each new 30 FPS camera frame is processed without display-clock sampling drift', t => {
+    let now = 0;
+    replaceGlobal(t, 'performance', { now: () => now });
+    replaceGlobal(t, 'document', { hidden: false });
+    replaceGlobal(t, 'HTMLMediaElement', { HAVE_CURRENT_DATA: 2 });
+    replaceGlobal(t, 'requestAnimationFrame', () => 1);
+    for (const displayHz of [59.94, 60, 60.1, 120, 144]) {
+        const tracker = new HandTracker();
+        const video = { currentTime: 0, readyState: 2 };
+        let detections = 0;
+        Object.assign(state(tracker), {
+            status: 'ready', video,
+            handLandmarker: { detectForVideo() { detections++; return { landmarks: [], handedness: [] }; } },
+        });
+        for (let frame = 0; frame < displayHz * 2; frame++) {
+            now = 1000 + frame * 1000 / displayHz;
+            video.currentTime = Math.floor((now - 1000 + 1e-8) * 30 / 1000) / 30;
+            state(tracker).detectLoop();
+        }
+        assert.ok(detections >= 59 && detections <= 61, `Lost camera frames at ${displayHz} Hz: ${detections}`);
+        state(tracker).detectLoop();
+        assert.ok(detections <= 61, 'Reading a duplicate frame must not run inference');
+    }
+});
+
+test('hidden tabs and unchanged camera frames do not run inference', t => {
+    let now = 1000;
+    const documentState = { hidden: false };
+    replaceGlobal(t, 'performance', { now: () => now });
+    replaceGlobal(t, 'document', documentState);
+    replaceGlobal(t, 'HTMLMediaElement', { HAVE_CURRENT_DATA: 2 });
+    replaceGlobal(t, 'requestAnimationFrame', () => 1);
+    const tracker = new HandTracker();
+    const video = { currentTime: 1, readyState: 2 };
+    let detections = 0;
+    Object.assign(state(tracker), {
+        status: 'ready', video,
+        handLandmarker: { detectForVideo() { detections++; return { landmarks: [], handedness: [] }; } },
+    });
+    state(tracker).detectLoop();
+    now += 100;
+    state(tracker).detectLoop();
+    assert.equal(detections, 1);
+    documentState.hidden = true;
+    video.currentTime = 2;
+    now += 100;
+    state(tracker).detectLoop();
+    assert.equal(detections, 1);
+    documentState.hidden = false;
+    state(tracker).detectLoop();
+    assert.equal(detections, 2);
 });
