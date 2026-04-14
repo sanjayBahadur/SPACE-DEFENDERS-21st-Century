@@ -460,3 +460,50 @@ progress {
   background: #ffe81f0d;
   box-shadow: 0 0 0 2px #000a, 0 0 14px #ffe81f44;
 }
+
+.station-guide {
+  color: #8ecaff;
+  text-align: center;
+}
+.station-guide h2 {
+  margin: 0;
+  font: bold 18px/1.5 "Century Gothic", Futura, sans-serif;
+  letter-spacing: 1px;
+}
+.station-guide figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.station-guide .hand-pose {
+  display: block;
+  width: 160px;
+  height: 120px;
+}
+.station-guide figcaption {
+  font: 13px/1.6 Courier, monospace;
+}
+.pause-gesture-guides {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+}
+.pause-gesture-guides .station-guide {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 264px;
+  height: 350px;
+  display: grid;
+  grid-template-rows: 30px 1fr 1fr;
+  transform-origin: top left;
+}
+.pause-gesture-guides .hand-pose {
+  width: 145px;
+  height: 102px;
+}

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { HandTracker } from '../services/HandTracker';
 import { GestureMenuNavigator, canvasBounds } from '../ui/GestureMenu';
 import type { MenuTarget } from '../ui/GestureMenu';
+import { mountPauseGuides } from '../ui/stationGuides';
 
 export class PauseScene extends Phaser.Scene {
     private reason?: string;
@@ -42,7 +43,8 @@ export class PauseScene extends Phaser.Scene {
 
         this.connectionText = this.add.text(width / 2, height * 0.43, subText, {
             fontFamily: '"Orbitron", "Impact", sans-serif',
-            fontSize: '32px',
+            fontSize: '26px',
+            wordWrap: { width: 520, useAdvancedWrap: true },
             color: subColor,
             align: 'center',
             stroke: '#000000',
@@ -90,6 +92,7 @@ export class PauseScene extends Phaser.Scene {
             this.gestureMenu = new GestureMenuNavigator(this, tracker, () => this.menuTargets
                 .map(target => target()).filter((target): target is MenuTarget => target !== null));
         }
+        mountPauseGuides(this);
         this.updateConnection();
 
         // Add keyboard listener to unpause
