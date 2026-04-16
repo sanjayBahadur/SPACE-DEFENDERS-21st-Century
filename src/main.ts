@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import "./style.css";
 import { Boot } from "./scenes/Boot";
 import { MissionLoad } from "./scenes/MissionLoad";
+import { MissionBriefing } from "./scenes/MissionBriefing";
 import { Strategic } from "./scenes/Strategic";
 import { Tactical } from "./scenes/Tactical";
 import { MainMenu } from "./scenes/MainMenu";
@@ -32,6 +33,7 @@ const config: Phaser.Types.Core.GameConfig = {
     Boot,
     MainMenu,
     MissionLoad,
+    MissionBriefing,
     Strategic,
     Tactical,
     Credits,
