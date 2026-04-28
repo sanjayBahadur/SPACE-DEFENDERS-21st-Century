@@ -2,7 +2,7 @@
 
 A dual-view space survival game built with Phaser, TypeScript and MediaPipe Hand Landmarker. Pilot your ship through hazards on the left while defending it from incoming threats on the right.
 
-The local `0.9` branch is a polish iteration. See [the review and next playtest priorities](docs/0.9-review.md) for findings, design recommendations and remaining production-readiness work. [Libraries, tools and feature ownership](docs/technology.md) maps each feature to its implementation and documents runtime and development dependencies.
+**Desktop release: v0.9.4.** [Play online](https://sanjayBahadur.github.io/SPACE-DEFENDERS-21st-Century/) · [Release notes](CHANGELOG.md). Gameplay is frozen for this release. See [the review and playtest record](docs/0.9-review.md) for validation and hardware testing limits. [Libraries, tools and feature ownership](docs/technology.md) maps each feature to its implementation and documents runtime and development dependencies.
 
 ## Play locally
 
@@ -38,13 +38,27 @@ npm run build
 npm run preview
 ```
 
-CI runs the tests and TypeScript/production build. There is no separate linter configured. Serve `dist/` through a static host. For a repository subpath, build with:
+CI runs the unit tests, TypeScript/production build and Chromium production checks. The browser checks cover keyboard play, briefing cancellation, pause/resume/menu cycles, camera-denial fallback, and real model/WASM startup using a generated camera stream. There is no separate linter configured. Serve `dist/` through a static host. For a repository subpath, build with:
 
 ```sh
 npm run build -- --base=/SPACE-DEFENDERS-21st-Century/
 ```
 
 Use HTTPS for deployed camera play. All required models and WASM files are hosted locally under `public/models`; no model download is needed for keyboard play.
+
+## Production browser checks
+
+```sh
+npx playwright install chromium
+npm run build -- --base=/SPACE-DEFENDERS-21st-Century/
+npm run test:browser
+```
+
+The smoke command starts its own production preview and closes it afterward. For the deployed site, set `SMOKE_BASE_URL` to the full HTTPS URL, including its trailing slash. See [release/deployment procedures](docs/releasing.md). The automated camera stream checks model startup; it does not measure physical-hand recognition quality.
+
+## Distribution notices
+
+The build includes [third-party notices](public/legal/THIRD-PARTY-NOTICES.txt) and dependency license texts under `legal/`. [Asset and model provenance](docs/assets-and-models.md) records verified model/runtime sources and hashes.
 
 ## Artwork pipeline
 

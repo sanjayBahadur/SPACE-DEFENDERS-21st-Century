@@ -1,5 +1,7 @@
 # Space Defenders launch readiness
 
+Historical pre-release snapshot. See [release procedures](releasing.md) and the README for the publication prepared afterward.
+
 Audit date: 14 October 2026. This report compares the live GitHub repository with the local `0.9` branch. It proposes the remaining launch work; it does not change hosting settings or publish the branch.
 
 ## Decision
