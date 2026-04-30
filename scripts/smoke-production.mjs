@@ -122,6 +122,10 @@ try {
     await page.locator('#gesture-choice').click();
     await page.waitForFunction(() => document.querySelector('#camera-status')?.textContent.includes('Gesture control ready.'),
       undefined, { timeout: 60000 });
+    // Let the menu's camera-health polling observe subsequent inference frames.
+    await page.waitForTimeout(1000);
+    assert.match(await page.locator('#camera-status').textContent(), /Gesture control ready\./,
+      'Tracking failed after model startup');
     assert.ok(models.some(url => url.endsWith('/hand_landmarker.task')), 'Hand model was not loaded');
     assert.ok(models.some(url => url.endsWith('.wasm')), 'WASM runtime was not loaded');
     await page.locator('#controls').click();
