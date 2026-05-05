@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { HandTracker } from '../services/HandTracker';
+import { absorbDamage, advanceShield, frameLerp, type ShieldState } from '../utils/combat';
 
 export class Strategic extends Phaser.Scene {
     // Ship
@@ -28,6 +29,12 @@ export class Strategic extends Phaser.Scene {
         right: Phaser.Input.Keyboard.Key;
     };
 
+    private shield: ShieldState = { energy: 100, rechargeDelay: 0, exhausted: false, active: false };
+    private shieldKey!: Phaser.Input.Keyboard.Key;
+    private shieldSprite!: Phaser.GameObjects.Sprite;
+    private shieldBar!: Phaser.GameObjects.Rectangle;
+    private shieldText!: Phaser.GameObjects.Text;
+
     // HUD
     private hullBar!: Phaser.GameObjects.Rectangle;
     private statusText!: Phaser.GameObjects.Text;
@@ -41,12 +48,18 @@ export class Strategic extends Phaser.Scene {
     }
 
     create() {
+        this.registry.set('pausePending', false);
+        this.registry.set('gameOverPending', false);
+        this.registry.set('missionSeconds', 0);
         // Reset State
         this.isGameOver = false;
         this.hullHealth = 100;
         this.isGrabbing = false;
         this.currentShipFrame = 1;
         this.shipSpeedMultiplier = 1;
+        this.shield = { energy: 100, rechargeDelay: 0, exhausted: false, active: false };
+        this.lastHandTime = this.time.now;
+        this.stars = [];
 
         const width = this.scale.width;
         const height = this.scale.height;
@@ -80,18 +93,29 @@ export class Strategic extends Phaser.Scene {
         });
 
         this.statusText = this.add.text(20, 38, 'STANDBY', {
-            fontFamily: 'Courier', fontSize: '10px', color: '#446688'
+            fontFamily: 'Courier', fontSize: '14px', color: '#446688'
         });
 
-        this.add.text(20, vh - 55, 'HULL', { fontFamily: 'Courier', fontSize: '9px', color: '#446688' });
+        this.add.text(20, vh - 55, 'HULL', { fontFamily: 'Courier', fontSize: '14px', color: '#446688' });
         this.add.rectangle(90, vh - 42, 120, 8, 0x222244);
         this.hullBar = this.add.rectangle(90, vh - 42, 120, 8, 0x44aaff);
+        this.shieldText = this.add.text(20, vh - 105, 'SHIELD 100% · SHIFT / PALM', {
+            fontFamily: 'Courier', fontSize: '14px', color: '#8ecaff'
+        });
+        this.add.rectangle(90, vh - 78, 120, 8, 0x222244);
+        this.shieldBar = this.add.rectangle(30, vh - 78, 120, 8, 0x5be4b9).setOrigin(0, 0.5);
 
         // Listen for Gunner Game Over
         this.game.events.on('GUNNER_GAME_OVER', this.gameOver, this);
-        this.events.on('shutdown', () => {
+        this.events.once('shutdown', () => {
             this.game.events.off('GUNNER_GAME_OVER', this.gameOver, this);
+            this.game.events.off('GET_HULL', this.emitHull, this);
+            this.input.keyboard?.off('keydown-P', this.onPauseKey, this);
+            this.input.keyboard?.off('keydown-ESC', this.onPauseKey, this);
+            this.events.off('resume', this.onResume, this);
+            this.stars = [];
         });
+        this.events.on('resume', this.onResume, this);
 
         // Pause Button
         const pauseBtn = this.add.text(vw - 20, 20, 'II', {
@@ -111,6 +135,7 @@ export class Strategic extends Phaser.Scene {
         this.ship = this.add.sprite(cx, cy, 'pilotship1');
         this.ship.setScale(0.15);
         this.ship.setDepth(10);
+        this.shieldSprite = this.add.sprite(cx, cy, 'pilotShield').setDisplaySize(120, 120).setDepth(11).setVisible(false);
 
         // === GROUPS ===
         this.meteors = this.add.group();
@@ -125,38 +150,38 @@ export class Strategic extends Phaser.Scene {
         this.time.addEvent({ delay: 10000, callback: this.spawnCreature, callbackScope: this, loop: true });
 
         // Hull sync
-        this.game.events.on('GET_HULL', () => this.game.events.emit('HULL_UPDATE', this.hullHealth));
+        this.game.events.on('GET_HULL', this.emitHull, this);
 
         // === ANIMATIONS ===
-        this.anims.create({
+        this.createAnimation({
             key: 'meteor_anim',
             frames: [{ key: 'meteor1' }, { key: 'meteor2' }, { key: 'meteor3' }, { key: 'meteor4' }],
             frameRate: 10,
             repeat: -1
         });
 
-        this.anims.create({
+        this.createAnimation({
             key: 'creature_anim',
             frames: [{ key: 'creature1' }, { key: 'creature2' }],
             frameRate: 4,
             repeat: -1
         });
 
-        this.anims.create({
+        this.createAnimation({
             key: 'deathray_anim',
             frames: [{ key: 'deathray1' }, { key: 'deathray2' }, { key: 'deathray3' }, { key: 'deathray4' }],
             frameRate: 12,
             repeat: -1
         });
 
-        this.anims.create({
+        this.createAnimation({
             key: 'explosionV1',
             frames: [{ key: 'explosionV1_1' }, { key: 'explosionV1_2' }, { key: 'explosionV1_3' }, { key: 'explosionV1_4' }],
             frameRate: 15,
             repeat: 0
         });
 
-        this.anims.create({
+        this.createAnimation({
             key: 'explosionV2',
             frames: [{ key: 'explosionV2_1' }, { key: 'explosionV2_2' }, { key: 'explosionV2_3' }, { key: 'explosionV2_4' }],
             frameRate: 15,
@@ -186,68 +211,35 @@ export class Strategic extends Phaser.Scene {
         }) as any;
 
         // Pause Keys
-        this.input.keyboard!.on('keydown-P', () => this.pauseGame());
-        this.input.keyboard!.on('keydown-ESC', () => this.pauseGame());
+        this.input.keyboard!.on('keydown-P', this.onPauseKey, this);
+        this.input.keyboard!.on('keydown-ESC', this.onPauseKey, this);
+        this.shieldKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+        this.children.each(child => {
+            if (child instanceof Phaser.GameObjects.Text || child instanceof Phaser.GameObjects.Rectangle) child.setDepth(40);
+        });
     }
 
     update(_time: number, _delta: number) {
         if (this.isGameOver) return;
+        this.registry.set('missionSeconds', (this.registry.get('missionSeconds') ?? 0) + Math.min(Math.max(_delta, 0), 100) / 1000);
 
         const vw = this.scale.width / 2;
         const vh = this.scale.height;
+        const delta = Math.min(Math.max(_delta, 0), 100);
+        const frame = delta / (1000 / 60);
+        this.isGrabbing = false;
 
         // Starfield
         this.stars.forEach(star => {
-            star.y += (star as any).speed;
+            star.y += (star as any).speed * frame;
             if (star.y > vh) { star.y = 0; star.x = Phaser.Math.Between(0, vw); }
         });
 
-        // Reset speed multiplier (black holes will modify it)
-        this.shipSpeedMultiplier = 1;
-
-        // === BLACK HOLE GRAVITY WITH RINGS ===
-        this.blackHoles.getChildren().forEach((holeContainer: any) => {
-            const hole = holeContainer;
-            const holeX = hole.x;
-            const holeY = hole.y;
-            const dx = holeX - this.ship.x;
-            const dy = holeY - this.ship.y;
-            const dist = Phaser.Math.Distance.Between(this.ship.x, this.ship.y, holeX, holeY);
-
-            // Ring zones (slightly smaller as requested: 100, 70, 40)
-            if (dist < 100) {
-                // In outer ring - slight slowdown
-                this.shipSpeedMultiplier *= 0.7;
-                if (dist < 70) {
-                    // In middle ring - more slowdown + pull
-                    this.shipSpeedMultiplier *= 0.5;
-                    const pullStrength = 1.0;
-                    if (!this.isGrabbing) {
-                        this.shipTarget.x += (dx / dist) * pullStrength;
-                        this.shipTarget.y += (dy / dist) * pullStrength;
-                    }
-                    if (dist < 40) {
-                        // In core - maximum effect
-                        this.shipSpeedMultiplier *= 0.3;
-                        const corePull = 1.8;
-                        if (!this.isGrabbing) {
-                            this.shipTarget.x += (dx / dist) * corePull;
-                            this.shipTarget.y += (dy / dist) * corePull;
-                        }
-                        this.takeDamage(0.3);
-                    }
-                }
-            }
-
-            hole.rotation += 0.008;
-            hole.life -= 1;
-            if (hole.life <= 0) hole.destroy();
-        });
-
         // Hand Tracking
-        const tracker = this.registry.get('handTracker') as HandTracker;
-        if (tracker) {
-            const hands = tracker.getHands();
+        const keyboardMode = this.registry.get('keyboardMode') === true;
+        const tracker = this.registry.get('handTracker') as HandTracker | undefined;
+        const hands = !keyboardMode && tracker ? tracker.getHands() : { pilot: null, gunner: null };
+        if (!keyboardMode && tracker) {
             const pilot = hands.pilot;
             const gunner = hands.gunner; // Check gunner too
 
@@ -284,12 +276,13 @@ export class Strategic extends Phaser.Scene {
 
                 if (_time - this.lastHandTime > 750 && !this.isGameOver && !keyboardOverride) {
                     this.pauseGame('HAND_LOST');
+                    return;
                 }
             }
         }
 
         // Keyboard Fallback
-        const speed = 15; // Increased speed (was 7 * multiplier, now constant fast base)
+        const speed = 15 * frame; // Increased speed (was 7 * multiplier, now constant fast base)
         let isUsingKeys = false;
 
         const useKeyboard = this.registry.get('useKeyboardControls') ?? true;
@@ -305,16 +298,66 @@ export class Strategic extends Phaser.Scene {
         if (isUsingKeys) {
             this.isGrabbing = true; // Use the faster "Grab" lerp
             this.statusText.setText('MANUAL PILOT').setColor('#44ff44');
-        } else if (tracker && !this.isGrabbing) {
-            // If not using keys and not grabbing with hand, ensure we reset if needed
-            // (Logic handled in Hand Tracking section usually, so this is just a safe fallback)
+        } else if (keyboardMode) {
+            this.statusText.setText('WASD / ARROWS TO MOVE').setColor('#8ecaff');
         }
+
+        const shieldRequested = hands.pilot?.gesture === 'PALM' || (useKeyboard && this.shieldKey.isDown);
+        this.shield = advanceShield(this.shield, shieldRequested, delta);
+        this.updateShieldHud(shieldRequested);
+
+        // Reset speed multiplier (black holes will modify it)
+        this.shipSpeedMultiplier = 1;
+
+        // === BLACK HOLE GRAVITY WITH RINGS ===
+        this.blackHoles.getChildren().forEach((holeContainer: any) => {
+            const hole = holeContainer;
+            const holeX = hole.x;
+            const holeY = hole.y;
+            const dx = holeX - this.ship.x;
+            const dy = holeY - this.ship.y;
+            const dist = Phaser.Math.Distance.Between(this.ship.x, this.ship.y, holeX, holeY);
+
+            // Ring zones (slightly smaller as requested: 100, 70, 40)
+            if (dist < 100) {
+                // In outer ring - slight slowdown
+                this.shipSpeedMultiplier *= 0.7;
+                if (dist < 70) {
+                    // In middle ring - more slowdown + pull
+                    this.shipSpeedMultiplier *= 0.5;
+                    const pullStrength = 1.0 * frame;
+                    if (!this.isGrabbing) {
+                        this.shipTarget.x += (dx / Math.max(dist, 1)) * pullStrength;
+                        this.shipTarget.y += (dy / Math.max(dist, 1)) * pullStrength;
+                    }
+                    if (dist < 40) {
+                        // In core - maximum effect
+                        this.shipSpeedMultiplier *= 0.3;
+                        const corePull = 1.8 * frame;
+                        if (!this.isGrabbing) {
+                            this.shipTarget.x += (dx / Math.max(dist, 1)) * corePull;
+                            this.shipTarget.y += (dy / Math.max(dist, 1)) * corePull;
+                        }
+                        this.takeDamage(0.3 * frame);
+                    }
+                }
+            }
+
+            hole.rotation += 0.008 * frame;
+            hole.life -= frame;
+            if (hole.life <= 0) hole.destroy();
+        });
+
+        this.shipTarget.x = Phaser.Math.Clamp(this.shipTarget.x, 30, vw - 30);
+        this.shipTarget.y = Phaser.Math.Clamp(this.shipTarget.y, 30, vh - 30);
 
         // Ship Movement (affected by speed multiplier)
         const baseLerp = this.isGrabbing ? 0.18 : 0.015;
-        const lerpFactor = baseLerp * this.shipSpeedMultiplier;
+        const lerpFactor = frameLerp(baseLerp * this.shipSpeedMultiplier, delta);
         this.ship.x = Phaser.Math.Linear(this.ship.x, this.shipTarget.x, lerpFactor);
         this.ship.y = Phaser.Math.Linear(this.ship.y, this.shipTarget.y, lerpFactor);
+
+        this.shieldSprite.setPosition(this.ship.x, this.ship.y).setVisible(this.shield.active);
 
         // Ship rotation
         const moveDx = this.shipTarget.x - this.ship.x;
@@ -325,12 +368,13 @@ export class Strategic extends Phaser.Scene {
 
         // Meteor Movement (Top to Down only as requested)
         this.meteors.getChildren().forEach((meteor: any) => {
-            meteor.y += meteor.vy;
+            meteor.y += meteor.vy * frame;
             // No rotation or horizontal movement as requested for vertical sprites
             meteor.rotation = 0;
 
             if (meteor.x < -100 || meteor.x > vw + 100 || meteor.y < -100 || meteor.y > vh + 100) {
                 meteor.destroy();
+                return;
             }
 
             // HITBOX IMPROVEMENT: Use bounds overlap instead of center distance
@@ -378,16 +422,13 @@ export class Strategic extends Phaser.Scene {
 
             if (Phaser.Geom.Intersects.RectangleToRectangle(
                 shrink(shipBounds, 0.7),
-                shrink(rayBounds, 0.6)
+                new Phaser.Geom.Rectangle(rayBounds.x, rayBounds.centerY - 6.5, rayBounds.width, 13)
             )) {
                 this.takeDamage(30);
                 ray.destroy();
             }
         });
 
-        // Clamp ship
-        this.shipTarget.x = Phaser.Math.Clamp(this.shipTarget.x, 30, vw - 30);
-        this.shipTarget.y = Phaser.Math.Clamp(this.shipTarget.y, 30, vh - 30);
     }
 
     private spawnMeteorWithWarning() {
@@ -557,13 +598,19 @@ export class Strategic extends Phaser.Scene {
     }
 
     private takeDamage(amount: number) {
+        if (this.isGameOver) return;
+        const hit = absorbDamage(this.shield, amount);
+        this.shield = hit.shield;
+        this.updateShieldHud(this.shield.active || this.shield.exhausted);
+        if (hit.hullDamage === 0) return;
+        amount = hit.hullDamage;
         this.hullHealth -= amount;
         if (this.hullHealth < 0) this.hullHealth = 0;
 
         // Visual feedback
         if (amount > 5) {
             const anim = Math.random() > 0.5 ? 'explosionV1' : 'explosionV2';
-            const explosion = this.add.sprite(this.ship.x + Phaser.Math.Between(-20, 20), this.ship.y + Phaser.Math.Between(-20, 20), anim);
+            const explosion = this.add.sprite(this.ship.x + Phaser.Math.Between(-20, 20), this.ship.y + Phaser.Math.Between(-20, 20), `${anim}_1`);
             explosion.setScale(0.4); // Scaled down from 0.8
             explosion.play(anim);
             explosion.on('animationcomplete', () => explosion.destroy());
@@ -600,18 +647,44 @@ export class Strategic extends Phaser.Scene {
         if (this.isGameOver) return;
         this.isGameOver = true;
 
+        if (!this.registry.get('missionOutcome')) this.registry.set('missionOutcome', 'Hull integrity lost');
         // Sync with Gunner
         this.game.events.emit('PILOT_GAME_OVER');
 
         // Pause and Show Game Over
         this.scene.pause();
-        if (!this.scene.isActive('GameOverScene')) {
+        if (!this.scene.isActive('GameOverScene') && !this.registry.get('gameOverPending')) {
+            this.registry.set('gameOverPending', true);
             this.scene.launch('GameOverScene');
         }
     }
 
+    private createAnimation(config: Phaser.Types.Animations.Animation) {
+        if (config.key && !this.anims.exists(config.key)) this.anims.create(config);
+    }
+
+    private updateShieldHud(requested: boolean) {
+        this.shieldBar.width = this.shield.energy * 1.2;
+        const status = this.shield.active ? 'ACTIVE' : this.shield.exhausted && requested ? 'RELEASE TO RECHARGE' : this.shield.energy < 100 ? 'RECHARGING' : 'SHIFT / PALM';
+        this.shieldText.setText(`SHIELD ${Math.ceil(this.shield.energy)}% · ${status}`);
+        this.shieldBar.setFillStyle(this.shield.active ? 0x5be4b9 : this.shield.energy < 25 ? 0xffba66 : 0x8ecaff);
+    }
+
+    private emitHull() {
+        this.game.events.emit('HULL_UPDATE', this.hullHealth);
+    }
+
+    private onPauseKey(event: KeyboardEvent) {
+        if (!event.repeat) this.pauseGame();
+    }
+
+    private onResume() {
+        this.lastHandTime = this.time.now;
+    }
+
     private pauseGame(reason?: string) {
-        if (this.scene.isPaused()) return;
+        if (this.isGameOver || this.scene.isPaused() || this.scene.isActive('PauseScene') || this.registry.get('pausePending')) return;
+        this.registry.set('pausePending', true);
         this.scene.pause('Tactical'); // Pause Gunner scene too
         this.scene.pause();
         this.scene.launch('PauseScene', { reason });
