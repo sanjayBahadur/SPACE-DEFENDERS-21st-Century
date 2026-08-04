@@ -1,49 +1,69 @@
-import Phaser from 'phaser';
-import './style.css';
-import { Boot } from './scenes/Boot';
-import { Strategic } from './scenes/Strategic';
-import { Tactical } from './scenes/Tactical';
-import { MainMenu } from './scenes/MainMenu';
-import { Credits } from './scenes/Credits';
-import { PauseScene } from './scenes/PauseScene';
-import { HandTracker } from './services/HandTracker';
+import Phaser from "phaser";
+import "./style.css";
+import { Boot } from "./scenes/Boot";
+import { MissionLoad } from "./scenes/MissionLoad";
+import { Strategic } from "./scenes/Strategic";
+import { Tactical } from "./scenes/Tactical";
+import { MainMenu } from "./scenes/MainMenu";
+import { Credits } from "./scenes/Credits";
+import { PauseScene } from "./scenes/PauseScene";
+import { HandTracker } from "./services/HandTracker";
 
-import { GameOverScene } from './scenes/GameOverScene';
+import { GameOverScene } from "./scenes/GameOverScene";
 
 // Initialize HandTracker
 const handTracker = new HandTracker();
-// Start tracking immediately (camera permissions will be requested)
+// Camera access is requested only from the control selection menu.
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   width: 1280,
   height: 720, // 16:9 ratio
-  parent: 'app',
+  parent: "app",
   dom: {
-    createContainer: true
+    createContainer: true,
   },
-  backgroundColor: '#000000',
+  backgroundColor: "#000000",
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
+    autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   // Boot scene launches the others
-  scene: [Boot, MainMenu, Strategic, Tactical, Credits, PauseScene, GameOverScene],
+  scene: [
+    Boot,
+    MainMenu,
+    MissionLoad,
+    Strategic,
+    Tactical,
+    Credits,
+    PauseScene,
+    GameOverScene,
+  ],
   callbacks: {
     postBoot: (gameInstance) => {
       // Expose tracker to scenes via registry
-      gameInstance.registry.set('handTracker', handTracker);
-    }
-  }
+      gameInstance.registry.set("handTracker", handTracker);
+    },
+  },
 };
 
-const game = new Phaser.Game(config);
+export const game = new Phaser.Game(config);
 
-// Start tracking immediately (camera permissions will be requested)
-handTracker.init().then(() => {
-  console.log('HandTracker initialized');
-}).catch(err => {
-  console.error('HandTracker failed to initialize - Falling back to Keyboard Mode', err);
-  // Auto-enable Keyboard Mode if camera fails
-  game.registry.set('keyboardMode', true);
-  game.registry.set('manualKeyboardOverride', true);
+// Keep missions fair when the window loses focus or becomes hidden.
+const pauseOnLeave = () => {
+  if (
+    !game.scene.isActive("Strategic") ||
+    game.scene.isActive("PauseScene") ||
+    game.scene.isActive("GameOverScene") ||
+    game.registry.get("pausePending")
+  )
+    return;
+  game.registry.set("pausePending", true);
+  game.scene.pause("Strategic");
+  game.scene.pause("Tactical");
+  game.scene.start("PauseScene", { reason: "FOCUS_LOST" });
+};
+window.addEventListener("blur", pauseOnLeave);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) pauseOnLeave();
 });
+window.addEventListener("pagehide", () => handTracker.stop());
