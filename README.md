@@ -13,15 +13,15 @@ npm ci
 npm run dev
 ```
 
-Open the displayed local URL. Choose **Keyboard & mouse** and launch immediately, or choose **Hand gestures** to enable your camera. Camera frames stay in your browser. Camera controls require HTTPS or localhost. Desktop landscape is recommended; gameplay does not yet provide touch controls.
+Open the displayed local URL. A ten-second, skippable opening crawl leads into the original space-opera menu. Select **START MISSION** for keyboard and mouse, or enable **GESTURE CONTROL** in **GAME CONTROLS** first. The **HAND SKELETON** setting defaults to on. Camera frames stay in your browser. The hand skeleton overlay is visible during camera play to help align gestures. Camera controls require HTTPS or localhost. Desktop landscape is recommended; gameplay does not yet provide touch controls.
 
 | Station            | Keyboard / mouse                                                      | Hand gestures                                                  |
 | ------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Pilot, left view   | WASD / arrows to move; hold Shift for shield                          | Left fist to move; left open palm for shield                   |
+| Pilot, left view   | WASD / arrows to move                                                 | Left fist to move; release to let go                           |
 | Gunner, right view | Mouse to aim; left click to fire; hold Space / right click for cannon | Right index to aim; thumb flick to fire; right fist for cannon |
 | Pause              | Esc / P, or the Pilot pause button                                    | Return to keyboard controls from the pause menu                |
 
-Protect both stations to survive. The pilot shield absorbs damage before hull and drains while held; release it to recharge. The cannon heats over six seconds of sustained fire and warns at half heat. Overheating locks it until cooled, rather than destroying the ship.
+Protect both stations to survive. The cannon heats over six seconds of sustained fire and warns at half heat. Overheating locks it until cooled, rather than destroying the ship.
 
 ## Checks and production build
 
@@ -52,7 +52,7 @@ The image pass reduces bytes from 8,249,693 to 5,349,500 (35.2%). Decoded textur
 
 ## Browser playtest
 
-Check keyboard launch without a permission prompt, camera denial fallback, movement/fire/cannon/shield, pause/resume, focus-loss pause, defeat/retry and menu/credits transitions. Repeat twenty mission cycles and watch for duplicate input/events or accumulating objects. Test failed asset loading and retry, narrow/short viewports and zoom, and a subpath production build.
+Check the ten-second intro and Skip action, keyboard launch without a permission prompt, camera denial fallback, visible hand skeleton feedback, movement/fire/cannon, pause/resume, focus-loss pause, defeat/retry and menu/credits transitions. Repeat twenty mission cycles and watch for duplicate input/events or accumulating objects. Test failed asset loading and retry, narrow/short viewports and zoom, and a subpath production build.
 
 Real gesture accuracy and long-run performance need physical camera and representative hardware checks. Details are in the review.
 
