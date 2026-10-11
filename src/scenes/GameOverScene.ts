@@ -20,7 +20,7 @@ export class GameOverScene extends Phaser.Scene {
             <p class="eyebrow">MISSION REPORT</p><h1>Ship lost.<br><em>Return stronger.</em></h1>
             <dl class="mission-stats"><div><dt>Score</dt><dd>${score.toLocaleString()}</dd></div><div><dt>Time survived</dt><dd>${duration}</dd></div></dl>
             <p class="status">${outcome}</p>
-            <p class="lede">Use your shield to absorb hazards. Fire the cannon in bursts and let it cool between attacks.</p>
+            <p class="lede">Avoid hazards. Fire the cannon in bursts and let it cool between attacks.</p>
             <div class="dialog-actions"><button id="retry" class="primary">Retry mission</button>
             <button id="menu" class="secondary">Return to menu</button></div>
         </section>`,
