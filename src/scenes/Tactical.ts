@@ -72,7 +72,7 @@ export class Tactical extends Phaser.Scene {
         this.palmTemp = 0;
         this.isOverheated = false;
         this.lastFlickTime = -Infinity;
-        this.wasPointerDown = false;
+        this.wasPointerDown = this.input.activePointer.leftButtonDown();
         this.lastHandTime = this.time.now;
         this.damageProtectedUntil = 0;
         this.stars = [];
@@ -866,7 +866,7 @@ export class Tactical extends Phaser.Scene {
 
     private onResume() {
         this.lastHandTime = this.time.now;
-        this.wasPointerDown = this.input.activePointer.isDown;
+        this.wasPointerDown = this.input.activePointer.leftButtonDown();
     }
 
     private pauseGame(reason?: string) {
