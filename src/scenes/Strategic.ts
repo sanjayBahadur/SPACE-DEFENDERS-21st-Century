@@ -1,6 +1,10 @@
 import Phaser from 'phaser';
 import { HandTracker } from '../services/HandTracker';
 import { frameLerp } from '../utils/combat';
+import {
+    applyHullHit, applyHullExposure, BLACK_HOLE_DAMAGE_PER_SECOND,
+    METEOR_HULL_DAMAGE, DEATH_RAY_HULL_DAMAGE, type HullState,
+} from '../utils/hull';
 
 export class Strategic extends Phaser.Scene {
     // Ship
@@ -18,7 +22,7 @@ export class Strategic extends Phaser.Scene {
     private warnings!: Phaser.GameObjects.Group;
 
     // State
-    private hullHealth: number = 100;
+    private hullState: HullState = { health: 100, protectedUntil: 0 };
     private isGameOver: boolean = false;
     private lastHandTime: number = 0;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -31,6 +35,7 @@ export class Strategic extends Phaser.Scene {
 
     // HUD
     private hullBar!: Phaser.GameObjects.Rectangle;
+    private hullText!: Phaser.GameObjects.Text;
     private statusText!: Phaser.GameObjects.Text;
 
     // Background
@@ -47,7 +52,7 @@ export class Strategic extends Phaser.Scene {
         this.registry.set('missionSeconds', 0);
         // Reset State
         this.isGameOver = false;
-        this.hullHealth = 100;
+        this.hullState = { health: 100, protectedUntil: 0 };
         this.isGrabbing = false;
         this.currentShipFrame = 1;
         this.shipSpeedMultiplier = 1;
@@ -89,7 +94,7 @@ export class Strategic extends Phaser.Scene {
             fontFamily: 'Courier', fontSize: '14px', color: '#446688'
         });
 
-        this.add.text(20, vh - 55, 'HULL', { fontFamily: 'Courier', fontSize: '14px', color: '#446688' });
+        this.hullText = this.add.text(20, vh - 65, 'HULL 100%', { fontFamily: 'Courier', fontSize: '14px', color: '#8ecaff' });
         this.add.rectangle(90, vh - 42, 120, 8, 0x222244);
         this.hullBar = this.add.rectangle(90, vh - 42, 120, 8, 0x44aaff);
 
@@ -214,6 +219,8 @@ export class Strategic extends Phaser.Scene {
         const delta = Math.min(Math.max(_delta, 0), 100);
         const frame = delta / (1000 / 60);
         this.isGrabbing = false;
+        // Brief blinking makes collision recovery visible without adding a shield.
+        this.ship.setAlpha(_time < this.hullState.protectedUntil && Math.floor(_time / 100) % 2 === 0 ? 0.45 : 1);
 
         // Starfield
         this.stars.forEach(star => {
@@ -320,7 +327,7 @@ export class Strategic extends Phaser.Scene {
                             this.shipTarget.x += (dx / Math.max(dist, 1)) * corePull;
                             this.shipTarget.y += (dy / Math.max(dist, 1)) * corePull;
                         }
-                        this.takeDamage(0.3 * frame);
+                        this.updateHull(applyHullExposure(this.hullState, BLACK_HOLE_DAMAGE_PER_SECOND, delta));
                     }
                 }
             }
@@ -374,8 +381,7 @@ export class Strategic extends Phaser.Scene {
                 shrink(shipBounds, 0.7),
                 shrink(meteorBounds, 0.7)
             )) {
-                this.takeDamage(18);
-                this.createImpact(meteor.x, meteor.y);
+                if (this.takeDamage(METEOR_HULL_DAMAGE)) this.createImpact(meteor.x, meteor.y);
                 meteor.destroy();
             }
         });
@@ -404,7 +410,7 @@ export class Strategic extends Phaser.Scene {
                 shrink(shipBounds, 0.7),
                 new Phaser.Geom.Rectangle(rayBounds.x, rayBounds.centerY - 6.5, rayBounds.width, 13)
             )) {
-                this.takeDamage(30);
+                this.takeDamage(DEATH_RAY_HULL_DAMAGE);
                 ray.destroy();
             }
         });
@@ -577,10 +583,10 @@ export class Strategic extends Phaser.Scene {
         });
     }
 
-    private takeDamage(amount: number) {
-        if (this.isGameOver) return;
-        this.hullHealth -= amount;
-        if (this.hullHealth < 0) this.hullHealth = 0;
+    private takeDamage(amount: number): boolean {
+        if (this.isGameOver) return false;
+        const nextHull = applyHullHit(this.hullState, amount, this.time.now);
+        if (nextHull === this.hullState) return false;
 
         // Visual feedback
         if (amount > 5) {
@@ -591,15 +597,23 @@ export class Strategic extends Phaser.Scene {
             explosion.on('animationcomplete', () => explosion.destroy());
         }
 
-        const barWidth = (this.hullHealth / 100) * 120;
-        this.hullBar.width = barWidth;
+        this.updateHull(nextHull);
+        return true;
+    }
+
+    private updateHull(nextHull: HullState) {
+        if (this.isGameOver || nextHull === this.hullState) return;
+        this.hullState = nextHull;
+        const barWidth = (this.hullState.health / 100) * 120;
+        this.hullBar.setSize(barWidth, 8);
         this.hullBar.x = 30 + barWidth / 2;
+        this.hullText.setText(`HULL ${Math.ceil(this.hullState.health)}%`);
 
-        if (this.hullHealth <= 50) this.hullBar.setFillStyle(0xffaa00);
-        if (this.hullHealth <= 25) this.hullBar.setFillStyle(0xff4444);
+        if (this.hullState.health <= 50) this.hullBar.setFillStyle(0xffaa00);
+        if (this.hullState.health <= 25) this.hullBar.setFillStyle(0xff4444);
 
-        this.game.events.emit('HULL_UPDATE', this.hullHealth);
-        if (this.hullHealth <= 0) this.gameOver();
+        this.game.events.emit('HULL_UPDATE', this.hullState.health);
+        if (this.hullState.health <= 0) this.gameOver();
     }
 
     private createImpact(x: number, y: number) {
@@ -639,7 +653,7 @@ export class Strategic extends Phaser.Scene {
     }
 
     private emitHull() {
-        this.game.events.emit('HULL_UPDATE', this.hullHealth);
+        this.game.events.emit('HULL_UPDATE', this.hullState.health);
     }
 
     private onPauseKey(event: KeyboardEvent) {
