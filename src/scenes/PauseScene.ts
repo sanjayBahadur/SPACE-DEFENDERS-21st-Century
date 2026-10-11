@@ -1,17 +1,27 @@
 import Phaser from 'phaser';
 import type { HandTracker } from '../services/HandTracker';
+import { GestureMenuNavigator, canvasBounds } from '../ui/GestureMenu';
+import type { MenuTarget } from '../ui/GestureMenu';
 
 export class PauseScene extends Phaser.Scene {
     private reason?: string;
+    private missingRole?: 'pilot' | 'gunner';
     private leaving = false;
+    private gestureMenu?: GestureMenuNavigator;
+    private menuTargets: Array<() => MenuTarget | null> = [];
+    private connectionText!: Phaser.GameObjects.Text;
+    private resumeButton!: Phaser.GameObjects.Container;
 
     constructor() {
         super('PauseScene');
     }
 
-    create(data?: { reason?: string }) {
+    create(data?: { reason?: string; missingRole?: 'pilot' | 'gunner' }) {
         this.reason = data?.reason;
+        this.missingRole = data?.missingRole;
         this.leaving = false;
+        this.menuTargets = [];
+        this.gestureMenu = undefined;
         this.registry.set('pausePending', false);
 
         const width = this.scale.width;
@@ -27,15 +37,10 @@ export class PauseScene extends Phaser.Scene {
         titleImage.setScale(scale);
 
         // Subtext / Context
-        let subText = 'MISSION PAUSED';
-        let subColor = '#FFE81F'; // Yellow default
+        const subText = 'MISSION PAUSED';
+        const subColor = '#FFE81F';
 
-        if (this.reason === 'HAND_LOST') {
-            subText = 'PILOT DISCONNECTED\nRETURN HANDS TO SENSOR RANGE';
-            subColor = '#FF4444'; // Red alert
-        }
-
-        this.add.text(width / 2, height * 0.45, subText, {
+        this.connectionText = this.add.text(width / 2, height * 0.43, subText, {
             fontFamily: '"Orbitron", "Impact", sans-serif',
             fontSize: '32px',
             color: subColor,
@@ -46,9 +51,9 @@ export class PauseScene extends Phaser.Scene {
 
 
         // Merge into a single "RESUME MISSION" button
-        this.createButton(width / 2, height * 0.55, 'RESUME MISSION', () => {
+        this.resumeButton = this.createButton(width / 2, height * 0.55, 'RESUME MISSION', () => {
             this.resumeGame(true);
-        });
+        }, () => this.resumeGame(false), () => this.canGestureResume());
 
         // Switching to keyboard releases the camera. Camera setup stays in the menu.
         const isKeyboardMode = this.registry.get('keyboardMode') === true;
@@ -74,6 +79,19 @@ export class PauseScene extends Phaser.Scene {
             this.scene.start('MainMenu', { skipIntro: true });
         });
 
+        this.add.text(width / 2, height * 0.93, isKeyboardMode
+            ? 'P / ESC TO RESUME'
+            : 'POINT YOUR RIGHT INDEX · FLICK THUMB TO SELECT · P / ESC TO RESUME', {
+            fontFamily: '"Century Gothic", Futura, sans-serif',
+            fontSize: '18px', color: '#FFE81F', align: 'center'
+        }).setOrigin(0.5);
+        const tracker = this.registry.get('handTracker') as HandTracker | undefined;
+        if (!isKeyboardMode && tracker) {
+            this.gestureMenu = new GestureMenuNavigator(this, tracker, () => this.menuTargets
+                .map(target => target()).filter((target): target is MenuTarget => target !== null));
+        }
+        this.updateConnection();
+
         // Add keyboard listener to unpause
         const keyResume = (event: KeyboardEvent) => {
             if (!event.repeat) this.resumeGame(true);
@@ -83,21 +101,58 @@ export class PauseScene extends Phaser.Scene {
         this.events.once('shutdown', () => {
             this.input.keyboard?.off('keydown-P', keyResume);
             this.input.keyboard?.off('keydown-ESC', keyResume);
+            this.gestureMenu = undefined;
+            this.menuTargets = [];
         });
+    }
+
+    update() {
+        this.updateConnection();
+        this.gestureMenu?.tick();
+    }
+
+    private canGestureResume(): boolean {
+        const tracker = this.registry.get('handTracker') as HandTracker | undefined;
+        if (this.registry.get('keyboardMode') === true || tracker?.getStatus() !== 'ready') return false;
+        const hands = tracker.getHands();
+        // Both stations need their hand back before gesture-controlled play resumes.
+        return !!hands.pilot && !!hands.gunner;
+    }
+
+    private updateConnection() {
+        if (this.reason !== 'HAND_LOST' || this.registry.get('keyboardMode') === true) return;
+        const tracker = this.registry.get('handTracker') as HandTracker | undefined;
+        const ready = this.canGestureResume();
+        const hands = tracker?.getHands();
+        const missing = !hands?.pilot ? 'pilot' : !hands.gunner ? 'gunner' : this.missingRole;
+        const role = (ready ? this.missingRole : missing)?.toUpperCase() ?? 'HANDS';
+        const cameraReady = tracker?.getStatus() === 'ready';
+        this.connectionText.setText(ready
+            ? `${role} RECONNECTED\nPOINT AT RESUME AND FLICK YOUR THUMB`
+            : cameraReady
+                ? `${role} DISCONNECTED\nRETURN ${missing === 'pilot' ? 'LEFT HAND' : missing === 'gunner' ? 'RIGHT HAND' : 'HANDS'} TO SENSOR RANGE`
+                : 'CAMERA DISCONNECTED\nUSE KEYBOARD & MOUSE OR RETURN TO MENU');
+        this.connectionText.setColor(ready ? '#FFE81F' : '#FF4444');
+        this.resumeButton.setAlpha(ready ? 1 : 0.6);
     }
 
     private resumeGame(isManual: boolean) {
         if (this.leaving) return;
+        if (!isManual && !this.canGestureResume()) return;
         this.leaving = true;
-        // Manual resume keeps intermittent tracking from immediately pausing again.
-        this.registry.set('manualKeyboardOverride', isManual);
+        // Recovering a hand keeps gesture safety active. P / ESC remains a manual
+        // escape hatch if a camera has stopped or the missing hand is unavailable.
+        const tracker = this.registry.get('handTracker') as HandTracker | undefined;
+        this.registry.set('manualKeyboardOverride', isManual && !this.canGestureResume());
+        tracker?.getHands(true); // The menu confirmation must never also fire a shot.
 
         this.scene.resume('Tactical');
         this.scene.resume('Strategic');
         this.scene.stop();
     }
 
-    private createButton(x: number, y: number, text: string, callback: () => void) {
+    private createButton(x: number, y: number, text: string, callback: () => void,
+        gestureCallback = callback, enabled = () => true) {
         const container = this.add.container(x, y);
 
         const textObj = this.add.text(0, 0, text, {
@@ -121,6 +176,11 @@ export class PauseScene extends Phaser.Scene {
         hitArea.on('pointerdown', callback);
 
         container.add([hitArea, textObj]);
+        this.menuTargets.push(() => enabled() ? ({
+            id: text,
+            bounds: canvasBounds(this, hitArea.getBounds()),
+            activate: gestureCallback,
+        }) : null);
         return container;
     }
 
