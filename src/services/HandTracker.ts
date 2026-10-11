@@ -32,6 +32,7 @@ export class HandTracker {
     private gunnerFilterY = new OneEuroFilter();
     private lastGunnerThumbDist = -1;
     private lastDetectionTime = 0;
+    private lastHandsUpdateTime = 0;
 
     getStatus(): HandTrackerStatus {
         return this.status;
@@ -185,6 +186,7 @@ export class HandTracker {
         this.hands = { pilot: null, gunner: null };
         this.lastVideoTime = -1;
         this.lastDetectionTime = 0;
+        this.lastHandsUpdateTime = 0;
         this.lastGunnerThumbDist = -1;
         this.pilotFilterX = new OneEuroFilter();
         this.pilotFilterY = new OneEuroFilter();
@@ -237,12 +239,19 @@ export class HandTracker {
 
     private updateHands(now: number): HandsResult {
         const result: HandsResult = { pilot: null, gunner: null };
-        if (!this.results || !this.results.landmarks) return result;
+        // A stalled camera or hidden tab must not turn the first returning frame
+        // into a thumb flick, or smooth its cursor from an old hand position.
+        if (now - this.lastHandsUpdateTime > 250) {
+            this.resetPilotMotion();
+            this.resetGunnerMotion();
+        }
+        this.lastHandsUpdateTime = now;
+        const detectedHands = this.results?.landmarks ?? [];
 
         // Iterate over detected hands
-        for (let i = 0; i < this.results.landmarks.length; i++) {
-            const landmarks = this.results.landmarks[i];
-            const handedness = this.results.handedness[i]?.[0];
+        for (let i = 0; i < detectedHands.length; i++) {
+            const landmarks = detectedHands[i];
+            const handedness = this.results?.handedness[i]?.[0];
             if (!handedness || landmarks.length < 21) continue;
             const detectedCategory = handedness.categoryName;
             // In MediaPipe with front camera, "Left" usually refers to the left hand of the person 
@@ -312,7 +321,10 @@ export class HandTracker {
                 // Calculate distance
                 const thumbTip = landmarks[4];
                 const indexBase = landmarks[5]; // Index MCP
-                const currentDist = this.distance(thumbTip, indexBase);
+                // Compare thumb motion relative to palm size. Moving the whole
+                // hand toward the camera should not count as pulling a trigger.
+                const palmSize = Math.max(this.distance(landmarks[0], landmarks[9]), 0.001);
+                const currentDist = this.distance(thumbTip, indexBase) / palmSize;
 
                 if (this.lastGunnerThumbDist > 0.001) {
                     const delta = currentDist - this.lastGunnerThumbDist;
@@ -344,8 +356,20 @@ export class HandTracker {
                 };
             }
         }
-        if (!result.gunner) this.lastGunnerThumbDist = -1;
+        if (!result.pilot) this.resetPilotMotion();
+        if (!result.gunner) this.resetGunnerMotion();
         return result;
+    }
+
+    private resetPilotMotion(): void {
+        this.pilotFilterX = new OneEuroFilter();
+        this.pilotFilterY = new OneEuroFilter();
+    }
+
+    private resetGunnerMotion(): void {
+        this.gunnerFilterX = new OneEuroFilter();
+        this.gunnerFilterY = new OneEuroFilter();
+        this.lastGunnerThumbDist = -1;
     }
 
     private detectLoop(): void {

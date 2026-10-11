@@ -1,5 +1,6 @@
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
+import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { HandTracker, type HandsResult, type HandTrackerStatus } from '../src/services/HandTracker.ts';
 
 function replaceGlobal(t: TestContext, name: string, value: unknown): void {
@@ -30,10 +31,31 @@ interface TrackerState {
     handLandmarker?: { close(): void };
     canvas?: HTMLCanvasElement;
     frameId?: number;
+    results?: { landmarks: NormalizedLandmark[][]; handedness: { categoryName: string }[][] };
+    updateHands(now: number): HandsResult;
 }
 
 function state(tracker: HandTracker): TrackerState {
     return tracker as unknown as TrackerState;
+}
+
+function pointingHand(): NormalizedLandmark[] {
+    const landmarks = Array.from({ length: 21 }, () => ({ x: 0.3, y: 0.6, z: 0 }));
+    landmarks[0] = { x: 0.3, y: 0.7, z: 0 };
+    landmarks[9] = { x: 0.3, y: 0.5, z: 0 };
+    landmarks[4] = { x: 0.15, y: 0.45, z: 0 };
+    landmarks[5] = { x: 0.35, y: 0.5, z: 0 };
+    landmarks[6] = { x: 0.35, y: 0.4, z: 0 };
+    landmarks[8] = { x: 0.35, y: 0.25, z: 0 };
+    return landmarks;
+}
+
+function detect(tracker: HandTracker, now: number, hands: { side: string; landmarks: NormalizedLandmark[] }[]): HandsResult {
+    state(tracker).results = {
+        landmarks: hands.map(hand => hand.landmarks),
+        handedness: hands.map(hand => [{ categoryName: hand.side }]),
+    };
+    return state(tracker).updateHands(now);
 }
 
 test('constructing a tracker never requests the camera or starts browser work', t => {
@@ -173,6 +195,60 @@ test('stale tracking does not return movement or consume a flick', () => {
     });
     assert.deepEqual(tracker.getHands(true), { pilot: null, gunner: null });
     assert.equal(state(tracker).hands.gunner?.flickDetected, true);
+});
+
+test('thumb flick detection ignores a change in camera distance but preserves a real flick', () => {
+    const tracker = new HandTracker();
+    const hand = pointingHand();
+    assert.equal(detect(tracker, 1000, [{ side: 'Right', landmarks: hand }]).gunner?.flickDetected, false);
+
+    const closerHand = hand.map(point => ({
+        ...point, x: 0.3 + (point.x - 0.3) * 1.25, y: 0.7 + (point.y - 0.7) * 1.25,
+    }));
+    assert.equal(detect(tracker, 1034, [{ side: 'Right', landmarks: closerHand }]).gunner?.flickDetected, false,
+        'An unchanged pose moving toward the camera must not fire or select a menu');
+
+    const flickHand = closerHand.map(point => ({ ...point }));
+    flickHand[4].x -= 0.125;
+    assert.equal(detect(tracker, 1068, [{ side: 'Right', landmarks: flickHand }]).gunner?.flickDetected, true);
+});
+
+test('a missing gunner returns at its current position without a ghost thumb flick', () => {
+    const tracker = new HandTracker();
+    const hand = pointingHand();
+    detect(tracker, 1000, [{ side: 'Right', landmarks: hand }]);
+    assert.equal(detect(tracker, 1034, []).gunner, null);
+
+    const returningHand = hand.map(point => ({ ...point, x: point.x - 0.25 }));
+    returningHand[4].x -= 0.1;
+    const returned = detect(tracker, 1068, [{ side: 'Right', landmarks: returningHand }]).gunner!;
+    assert.equal(returned.x, 1, 'Reacquisition must not use the lost hand\'s cursor smoothing state');
+    assert.equal(returned.flickDetected, false);
+});
+
+test('a stalled inference stream resets motion even without an explicit missing-hand frame', () => {
+    const tracker = new HandTracker();
+    const hand = pointingHand();
+    detect(tracker, 1000, [{ side: 'Right', landmarks: hand }]);
+    const returningHand = hand.map(point => ({ ...point, x: point.x - 0.25 }));
+    returningHand[4].x -= 0.1;
+    const returned = detect(tracker, 1251, [{ side: 'Right', landmarks: returningHand }]).gunner!;
+    assert.equal(returned.x, 1);
+    assert.equal(returned.flickDetected, false, 'A thumb pose changed while tracking was stale is not a fresh flick');
+});
+
+test('pilot smoothing resets independently while the gunner remains tracked', () => {
+    const tracker = new HandTracker();
+    const gunner = pointingHand();
+    const pilot = pointingHand();
+    detect(tracker, 1000, [{ side: 'Left', landmarks: pilot }, { side: 'Right', landmarks: gunner }]);
+    detect(tracker, 1034, [{ side: 'Right', landmarks: gunner }]);
+    const returningPilot = pilot.map(point => ({ ...point, x: point.x + 0.55 }));
+    const returned = detect(tracker, 1068, [
+        { side: 'Left', landmarks: returningPilot }, { side: 'Right', landmarks: gunner },
+    ]);
+    assert.ok(Math.abs(returned.pilot!.x - 1 / 7) < 1e-10);
+    assert.equal(returned.gunner?.flickDetected, false);
 });
 
 test('default skeleton overlay mounts after video setup and never intercepts game input', t => {
