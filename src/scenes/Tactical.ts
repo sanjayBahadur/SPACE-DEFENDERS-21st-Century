@@ -377,7 +377,9 @@ export class Tactical extends Phaser.Scene {
         this.isOverheated = cannon.overheated;
         const firingCannon = requestedCannon && !this.isOverheated;
 
-        this.tempBar.height = (this.palmTemp / 100) * 98;
+        // Resizing must update the rectangle geometry and display origin together.
+        // Changing height alone leaves the bottom anchor at its previous size.
+        this.tempBar.setSize(8, Phaser.Math.Clamp(this.palmTemp, 0, 100) * 0.98);
         this.tempBar.setFillStyle(this.isOverheated ? 0xff4444 : this.palmTemp >= 50 ? 0xffba66 : 0x5be4b9);
         if (this.isOverheated) {
             const seconds = (this.palmTemp / CANNON_COOL_PER_SECOND).toFixed(1);
