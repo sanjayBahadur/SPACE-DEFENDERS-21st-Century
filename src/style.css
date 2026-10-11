@@ -326,3 +326,43 @@ progress {
     transition: none;
   }
 }
+
+.gesture-menu-pointer {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #ffe81f;
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: #ffe81f;
+  background: radial-gradient(circle, #fff 0 2px, transparent 3px);
+  box-shadow: 0 0 0 2px #000c, 0 0 12px #ffe81f66;
+}
+.gesture-menu-pointer::before,
+.gesture-menu-pointer::after {
+  content: "";
+  position: absolute;
+  inset: 13px -5px;
+  background: linear-gradient(to right, currentColor 0 6px, transparent 6px 32px, currentColor 32px);
+}
+.gesture-menu-pointer::after {
+  transform: rotate(90deg);
+}
+.gesture-menu-pointer[data-target="true"] {
+  border-width: 2px;
+  color: #fff;
+  box-shadow: 0 0 0 2px #000c, 0 0 16px #ffe81faa;
+}
+.gesture-menu-selection {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 2px solid #ffe81f;
+  box-sizing: border-box;
+  background: #ffe81f0d;
+  box-shadow: 0 0 0 2px #000a, 0 0 14px #ffe81f44;
+}
