@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { HandTracker } from '../services/HandTracker';
 import { applyHullHit } from '../utils/hull';
+import { AIM_FOLLOW_AT_60_HZ } from '../utils/input';
 import { advanceCannon, CANNON_COOL_PER_SECOND, CANNON_HEAT_PER_SECOND, frameLerp } from '../utils/combat';
 
 export class Tactical extends Phaser.Scene {
@@ -507,8 +508,8 @@ export class Tactical extends Phaser.Scene {
         }
 
         // Crosshair LERP
-        this.crosshair.x = Phaser.Math.Linear(this.crosshair.x, this.crosshairTarget.x, frameLerp(0.2, delta));
-        this.crosshair.y = Phaser.Math.Linear(this.crosshair.y, this.crosshairTarget.y, frameLerp(0.2, delta));
+        this.crosshair.x = Phaser.Math.Linear(this.crosshair.x, this.crosshairTarget.x, frameLerp(AIM_FOLLOW_AT_60_HZ, delta));
+        this.crosshair.y = Phaser.Math.Linear(this.crosshair.y, this.crosshairTarget.y, frameLerp(AIM_FOLLOW_AT_60_HZ, delta));
 
         if (fireRequested) this.game.events.emit('FIRE');
         if (firingCannon) this.updateFistCannon(_time, this.crosshair.x, this.crosshair.y);
