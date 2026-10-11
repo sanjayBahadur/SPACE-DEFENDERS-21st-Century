@@ -1,12 +1,35 @@
 import Phaser from "phaser";
 import type { HandTracker } from "../services/HandTracker";
-import { mountScreen, controlsMarkup } from "../ui/screens";
+import { mountScreen } from "../ui/screens";
 
 export class MainMenu extends Phaser.Scene {
+  private stars: { object: Phaser.GameObjects.Arc; speed: number }[] = [];
+  private skipIntro = false;
+
   constructor() {
     super("MainMenu");
   }
+
+  init(data?: { skipIntro?: boolean }) {
+    this.skipIntro =
+      !!data?.skipIntro || this.registry.get("introSeen") === true;
+  }
+
   create() {
+    this.cameras.main.setBackgroundColor("#000000");
+    this.stars = [];
+    for (let i = 0; i < 200; i++) {
+      this.stars.push({
+        object: this.add.circle(
+          Phaser.Math.Between(0, this.scale.width),
+          Phaser.Math.Between(0, this.scale.height),
+          Phaser.Math.FloatBetween(0.5, 1.5),
+          0xffffff,
+          Phaser.Math.FloatBetween(0.1, 0.8),
+        ),
+        speed: Phaser.Math.FloatBetween(3, 12),
+      });
+    }
     const tracker = this.registry.get("handTracker") as HandTracker;
     tracker.stop();
     this.registry.set("keyboardMode", true);
@@ -14,83 +37,167 @@ export class MainMenu extends Phaser.Scene {
     const screen = mountScreen(
       this,
       `
-            <div class="menu-layout">
-                <section class="mission-intro">
-                    <p class="eyebrow">ORBITAL DEFENSE COMMAND <span>BUILD 0.9</span></p>
-                    <img class="game-logo" src="${import.meta.env.BASE_URL}assets/titlescreen/SpaceDefenders.webp" alt="Space Defenders: 21st Century">
-                    <h1>One ship.<br>Two stations.<br><em>You’re the crew.</em></h1>
-                    <p class="lede">Navigate the debris field. Lock onto incoming threats. Keep your ship alive.</p>
-                    <div class="mission-tags"><span>01 / PILOT</span><span>02 / GUNNER</span><span>SURVIVAL ARCADE</span></div>
-                </section>
-                <section class="command-card" aria-labelledby="prepare-title">
-                    <p class="eyebrow">MISSION PREPARATION</p>
-                    <h2 id="prepare-title">Choose your controls</h2>
-                    <div class="mode-options" role="group" aria-label="Control mode">
-                        <button id="keyboard-mode" class="mode selected" aria-pressed="true"><strong>Keyboard & mouse</strong><span>Ready immediately · no camera</span></button>
-                        <button id="gesture-mode" class="mode" aria-pressed="false"><strong>Hand gestures</strong><span>Enable your camera to fly hands-free</span></button>
+            <section id="intro" aria-label="Opening crawl">
+                <div id="crawl-container"><div class="crawl-content intro-crawl">
+                    <h1 class="crawl-title">SPACE DEFENDERS</h1>
+                    <p class="crawl-subtitle">21st Century</p>
+                    <div class="crawl-body">
+                        <p>Fly with your left fist. Aim with your right index; flick your thumb to fire. Hold your right fist for the cannon. Release to cool.</p>
+                        <p>Or use WASD, mouse, and Space.</p>
+                        <p>Protect both stations. The galaxy is counting on you.</p>
                     </div>
-                    <p id="camera-status" class="status" role="status">Keyboard & mouse ready. Your camera is off.</p>
-                    ${controlsMarkup()}
-                    <button id="start-mission" class="primary">Launch mission <span aria-hidden="true">↗</span></button>
-                    <p class="small-note">Best played on desktop in landscape. Press Esc to pause.</p>
-                    <button id="credits" class="text-button">Credits & technology</button>
+                </div></div>
+                <button id="skip-intro" class="crawl-skip">SKIP / MENU</button>
+            </section>
+            <div id="menu-content" hidden>
+                <section id="main-menu" class="menu-page">
+                    <img class="menu-logo" src="${import.meta.env.BASE_URL}assets/titlescreen/SpaceDefenders.webp" alt="Space Defenders">
+                    <nav class="menu-buttons" aria-label="Main menu">
+                        <button id="start-mission">START MISSION</button>
+                        <button id="controls">GAME CONTROLS</button>
+                        <button id="settings">SETTINGS</button>
+                        <button id="credits">CREDITS</button>
+                    </nav>
                 </section>
+                <section id="controls-menu" class="menu-page" hidden>
+                    <h1 class="menu-heading">CONTROLS</h1>
+                    <p class="control-guide">PILOT: Left fist / WASD / arrows to fly<br>GUNNER: Right index to aim, thumb flick / mouse click to fire<br>CANNON: Right fist / Space / right click — release to cool</p>
+                    <nav class="menu-buttons submenu-buttons" aria-label="Control mode">
+                        <button id="gesture-mode" aria-pressed="false">GESTURE CONTROL: [OFF]</button>
+                        <button id="keyboard-mode" aria-pressed="true">KEYBOARD & MOUSE: [ON]</button>
+                        <button data-back>BACK</button>
+                    </nav>
+                </section>
+                <section id="settings-menu" class="menu-page" hidden>
+                    <h1 class="menu-heading">SETTINGS</h1>
+                    <nav class="menu-buttons submenu-buttons" aria-label="Settings">
+                        <button id="camera-toggle" aria-pressed="false">CAMERA ACCESS: [OFF]</button>
+                        <button id="skeleton-toggle" aria-pressed="true">HAND SKELETON: [ON]</button>
+                        <button data-back>BACK</button>
+                    </nav>
+                </section>
+                <p id="camera-status" class="menu-status" role="status">Keyboard & mouse ready. Enable gestures in GAME CONTROLS.</p>
             </div>`,
     );
+    screen.classList.add("classic-menu");
+    const intro = screen.querySelector<HTMLElement>("#intro")!;
+    const content = screen.querySelector<HTMLElement>("#menu-content")!;
+    let introTimer: number | undefined;
+    const finishIntro = () => {
+      if (intro.hidden) return;
+      if (introTimer !== undefined) window.clearTimeout(introTimer);
+      intro.hidden = true;
+      content.hidden = false;
+      this.registry.set("introSeen", true);
+      screen.querySelector<HTMLButtonElement>("#start-mission")!.focus();
+    };
+    if (this.skipIntro) finishIntro();
+    else introTimer = window.setTimeout(finishIntro, 10000);
+    screen.querySelector("#skip-intro")!.addEventListener("click", finishIntro);
+    const showPage = (name: string) => {
+      for (const page of screen.querySelectorAll<HTMLElement>(".menu-page"))
+        page.hidden = page.id !== `${name}-menu`;
+      screen.querySelector<HTMLElement>(`#${name}-menu button`)?.focus();
+    };
+    screen
+      .querySelector("#controls")!
+      .addEventListener("click", () => showPage("controls"));
+    screen
+      .querySelector("#settings")!
+      .addEventListener("click", () => showPage("settings"));
+    screen
+      .querySelectorAll("[data-back]")
+      .forEach((button) =>
+        button.addEventListener("click", () => showPage("main")),
+      );
+    const escape = (event: KeyboardEvent) => {
+      if (event.repeat) return;
+      if (!intro.hidden) finishIntro();
+      else showPage("main");
+    };
+    this.input.keyboard?.on("keydown-ESC", escape);
+
     const keyboard = screen.querySelector<HTMLButtonElement>("#keyboard-mode")!;
     const gesture = screen.querySelector<HTMLButtonElement>("#gesture-mode")!;
+    const camera = screen.querySelector<HTMLButtonElement>("#camera-toggle")!;
+    const skeleton =
+      screen.querySelector<HTMLButtonElement>("#skeleton-toggle")!;
     const start = screen.querySelector<HTMLButtonElement>("#start-mission")!;
     const status = screen.querySelector<HTMLElement>("#camera-status")!;
     let request = 0;
     let launching = false;
-    this.events.once("shutdown", () => {
-      request++;
-      if (!launching) tracker.stop();
+    let loading = false;
+    let showSkeleton = this.registry.get("showSkeleton") !== false;
+    tracker.setDebugVisible(showSkeleton);
+    const updateSkeleton = () => {
+      skeleton.textContent = `HAND SKELETON: [${showSkeleton ? "ON" : "OFF"}]`;
+      skeleton.setAttribute("aria-pressed", String(showSkeleton));
+    };
+    updateSkeleton();
+    skeleton.addEventListener("click", () => {
+      showSkeleton = !showSkeleton;
+      this.registry.set("showSkeleton", showSkeleton);
+      tracker.setDebugVisible(showSkeleton);
+      updateSkeleton();
     });
     const selectMode = (useKeyboard: boolean) => {
       this.registry.set("keyboardMode", useKeyboard);
       this.registry.set("manualKeyboardOverride", useKeyboard);
-      keyboard.classList.toggle("selected", useKeyboard);
-      gesture.classList.toggle("selected", !useKeyboard);
+      keyboard.textContent = `KEYBOARD & MOUSE: [${useKeyboard ? "ON" : "OFF"}]`;
+      gesture.textContent = `GESTURE CONTROL: [${useKeyboard ? "OFF" : "ON"}]`;
+      camera.textContent = `CAMERA ACCESS: [${useKeyboard ? "OFF" : "ON"}]`;
       keyboard.setAttribute("aria-pressed", String(useKeyboard));
       gesture.setAttribute("aria-pressed", String(!useKeyboard));
+      camera.setAttribute("aria-pressed", String(!useKeyboard));
     };
-    keyboard.addEventListener("click", () => {
+    const useKeyboard = () => {
       request++;
+      loading = false;
       tracker.stop();
       selectMode(true);
-      start.disabled = false;
-      gesture.disabled = false;
-      status.textContent = "Keyboard & mouse ready. Your camera is off.";
-    });
-    gesture.addEventListener("click", async () => {
+      start.disabled = gesture.disabled = camera.disabled = false;
+      status.textContent = "Keyboard & mouse ready. Camera off.";
+    };
+    const enableGestures = async () => {
+      if (loading) return;
       const currentRequest = ++request;
-      start.disabled = true;
-      gesture.disabled = true;
+      loading = true;
+      start.disabled = gesture.disabled = camera.disabled = true;
       status.textContent =
-        "Allow camera access. Preparing hand tracking… You can switch back at any time.";
+        "Allow camera access. Preparing hand tracking… Keyboard mode remains available.";
       try {
         await tracker.init();
         if (currentRequest !== request || !screen.isConnected) return;
         selectMode(false);
         status.textContent =
-          "Camera ready. Left hand pilots; right hand aims. Keyboard & mouse remain available.";
+          "Gesture control ready. Left hand pilots; right hand fires.";
       } catch {
         if (currentRequest !== request || !screen.isConnected) return;
         selectMode(true);
         status.textContent = `${tracker.getError() ?? "Camera unavailable."} Keyboard & mouse are ready.`;
       } finally {
         if (currentRequest === request && screen.isConnected) {
-          start.disabled = false;
-          gesture.disabled = false;
+          loading = false;
+          start.disabled = gesture.disabled = camera.disabled = false;
         }
       }
+    };
+    keyboard.addEventListener("click", useKeyboard);
+    gesture.addEventListener("click", () => {
+      void enableGestures();
+    });
+    camera.addEventListener("click", () => {
+      if (tracker.getStatus() === "ready") useKeyboard();
+      else void enableGestures();
     });
     start.addEventListener("click", () => {
       start.disabled = true;
       launching = true;
       this.scene.start("MissionLoad");
     });
+    screen
+      .querySelector("#credits")!
+      .addEventListener("click", () => this.scene.start("Credits"));
     this.time.addEvent({
       delay: 500,
       loop: true,
@@ -104,8 +211,22 @@ export class MainMenu extends Phaser.Scene {
         }
       },
     });
-    screen
-      .querySelector("#credits")!
-      .addEventListener("click", () => this.scene.start("Credits"));
+    this.events.once("shutdown", () => {
+      request++;
+      if (introTimer !== undefined) window.clearTimeout(introTimer);
+      if (!launching) tracker.stop();
+      this.input.keyboard?.off("keydown-ESC", escape);
+      this.stars = [];
+    });
+  }
+
+  update(_time: number, delta: number) {
+    for (const star of this.stars) {
+      star.object.y += (star.speed * Math.min(delta, 100)) / 1000;
+      if (star.object.y > this.scale.height) {
+        star.object.y = 0;
+        star.object.x = Phaser.Math.Between(0, this.scale.width);
+      }
+    }
   }
 }
