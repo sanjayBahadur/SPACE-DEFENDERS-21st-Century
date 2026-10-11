@@ -327,6 +327,100 @@ progress {
   }
 }
 
+.choice-heading {
+  position: absolute;
+  top: 43%;
+  left: 5%;
+  right: 5%;
+  margin: 0;
+  text-align: center;
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+.startup-buttons {
+  top: 65%;
+}
+.startup-buttons button {
+  font-size: clamp(18px, 2.2vw, 28px);
+}
+.gesture-tutorial {
+  position: absolute;
+  right: 3%;
+  top: 48%;
+  width: 170px;
+  margin: 0;
+  pointer-events: none;
+  text-align: center;
+  color: #8ecaff;
+}
+.gesture-tutorial svg {
+  width: 170px;
+  height: 125px;
+}
+.gesture-tutorial figcaption {
+  font:
+    12px/1.7 Courier,
+    monospace;
+  letter-spacing: 1px;
+}
+.demo-thumb {
+  transform-origin: 199px 108px;
+  animation: thumb-flick 3s ease-in-out infinite;
+}
+.demo-confirm {
+  animation: confirm-pulse 3s ease-in-out infinite;
+}
+@keyframes thumb-flick {
+  0%,
+  35%,
+  75%,
+  100% {
+    transform: rotate(0deg);
+  }
+  48%,
+  60% {
+    transform: rotate(-24deg);
+  }
+}
+@keyframes confirm-pulse {
+  0%,
+  35%,
+  75%,
+  100% {
+    opacity: 0;
+  }
+  48%,
+  60% {
+    opacity: 1;
+  }
+}
+@media (max-width: 850px) {
+  .gesture-tutorial {
+    right: 1%;
+    top: 78%;
+    width: 130px;
+  }
+  .gesture-tutorial svg {
+    width: 90px;
+    height: 72px;
+  }
+  .gesture-tutorial figcaption {
+    font-size: 9px;
+  }
+  .menu-status {
+    bottom: 2%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-thumb,
+  .demo-confirm {
+    animation: none;
+  }
+  .demo-confirm {
+    opacity: 1;
+  }
+}
+
 .gesture-menu-pointer {
   display: none;
   position: absolute;

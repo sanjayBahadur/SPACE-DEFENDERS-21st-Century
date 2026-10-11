@@ -1,10 +1,13 @@
 import Phaser from "phaser";
 import type { HandTracker } from "../services/HandTracker";
 import { mountScreen } from "../ui/screens";
+import { GestureMenuNavigator } from "../ui/GestureMenu";
+import { gestureTutorialMarkup } from "../ui/gestureTutorial";
 
 export class MainMenu extends Phaser.Scene {
   private stars: { object: Phaser.GameObjects.Arc; speed: number }[] = [];
   private skipIntro = false;
+  private gestureMenu?: GestureMenuNavigator;
 
   constructor() {
     super("MainMenu");
@@ -31,9 +34,15 @@ export class MainMenu extends Phaser.Scene {
       });
     }
     const tracker = this.registry.get("handTracker") as HandTracker;
-    tracker.stop();
-    this.registry.set("keyboardMode", true);
-    this.registry.set("manualKeyboardOverride", true);
+    // Camera sessions survive menu/mission transitions; only an explicit keyboard
+    // choice or page exit releases the camera.
+    const cameraReady = tracker.getStatus() === "ready";
+    const keyboardChosen =
+      this.registry.get("controlChoiceMade") === true &&
+      this.registry.get("keyboardMode") === true;
+    const needsChoice = !cameraReady && !keyboardChosen;
+    this.registry.set("keyboardMode", !cameraReady);
+    this.registry.set("manualKeyboardOverride", !cameraReady);
     const screen = mountScreen(
       this,
       `
@@ -52,12 +61,20 @@ export class MainMenu extends Phaser.Scene {
             <div id="menu-content" hidden>
                 <section id="main-menu" class="menu-page">
                     <img class="menu-logo" src="${import.meta.env.BASE_URL}assets/titlescreen/SpaceDefenders.webp" alt="Space Defenders">
-                    <nav class="menu-buttons" aria-label="Main menu">
+                    <nav id="main-actions" class="menu-buttons" aria-label="Main menu">
                         <button id="start-mission">START MISSION</button>
                         <button id="controls">GAME CONTROLS</button>
                         <button id="settings">SETTINGS</button>
                         <button id="credits">CREDITS</button>
                     </nav>
+                    <section id="startup-choice" aria-label="Choose controls for this play session" hidden>
+                        <p class="choice-heading">PLAY WITH HAND GESTURES?</p>
+                        <nav class="menu-buttons startup-buttons" aria-label="Startup controls">
+                            <button id="gesture-choice">USE GESTURE CONTROLS</button>
+                            <button id="keyboard-choice">PLAY WITH KEYBOARD & MOUSE</button>
+                        </nav>
+                    </section>
+                    ${gestureTutorialMarkup()}
                 </section>
                 <section id="controls-menu" class="menu-page" hidden>
                     <h1 class="menu-heading">CONTROLS</h1>
@@ -76,7 +93,7 @@ export class MainMenu extends Phaser.Scene {
                         <button data-back>BACK</button>
                     </nav>
                 </section>
-                <p id="camera-status" class="menu-status" role="status">Keyboard & mouse ready. Enable gestures in GAME CONTROLS.</p>
+                <p id="camera-status" class="menu-status" role="status">Choose gesture controls to enable your camera, or use keyboard & mouse.</p>
             </div>`,
     );
     screen.classList.add("classic-menu");
@@ -89,7 +106,11 @@ export class MainMenu extends Phaser.Scene {
       intro.hidden = true;
       content.hidden = false;
       this.registry.set("introSeen", true);
-      screen.querySelector<HTMLButtonElement>("#start-mission")!.focus();
+      screen
+        .querySelector<HTMLButtonElement>(
+          needsChoice ? "#gesture-choice" : "#start-mission",
+        )!
+        .focus();
     };
     if (this.skipIntro) finishIntro();
     else introTimer = window.setTimeout(finishIntro, 10000);
@@ -124,8 +145,18 @@ export class MainMenu extends Phaser.Scene {
       screen.querySelector<HTMLButtonElement>("#skeleton-toggle")!;
     const start = screen.querySelector<HTMLButtonElement>("#start-mission")!;
     const status = screen.querySelector<HTMLElement>("#camera-status")!;
+    const choice = screen.querySelector<HTMLElement>("#startup-choice")!;
+    const actions = screen.querySelector<HTMLElement>("#main-actions")!;
+    const gestureChoice =
+      screen.querySelector<HTMLButtonElement>("#gesture-choice")!;
+    const keyboardChoice =
+      screen.querySelector<HTMLButtonElement>("#keyboard-choice")!;
+    const showChoice = (show: boolean) => {
+      choice.hidden = !show;
+      actions.hidden = show;
+    };
+    showChoice(needsChoice);
     let request = 0;
-    let launching = false;
     let loading = false;
     let showSkeleton = this.registry.get("showSkeleton") !== false;
     tracker.setDebugVisible(showSkeleton);
@@ -155,22 +186,34 @@ export class MainMenu extends Phaser.Scene {
       loading = false;
       tracker.stop();
       selectMode(true);
-      start.disabled = gesture.disabled = camera.disabled = false;
+      this.registry.set("controlChoiceMade", true);
+      showChoice(false);
+      start.disabled =
+        gesture.disabled =
+        camera.disabled =
+        gestureChoice.disabled =
+          false;
       status.textContent = "Keyboard & mouse ready. Camera off.";
     };
     const enableGestures = async () => {
       if (loading) return;
       const currentRequest = ++request;
       loading = true;
-      start.disabled = gesture.disabled = camera.disabled = true;
+      start.disabled =
+        gesture.disabled =
+        camera.disabled =
+        gestureChoice.disabled =
+          true;
       status.textContent =
         "Allow camera access. Preparing hand tracking… Keyboard mode remains available.";
       try {
         await tracker.init();
         if (currentRequest !== request || !screen.isConnected) return;
         selectMode(false);
+        this.registry.set("controlChoiceMade", true);
+        showChoice(false);
         status.textContent =
-          "Gesture control ready. Left hand pilots; right hand fires.";
+          "Gesture control ready. Point + thumb flick to select. Keep both hands in view to fly.";
       } catch {
         if (currentRequest !== request || !screen.isConnected) return;
         selectMode(true);
@@ -178,11 +221,19 @@ export class MainMenu extends Phaser.Scene {
       } finally {
         if (currentRequest === request && screen.isConnected) {
           loading = false;
-          start.disabled = gesture.disabled = camera.disabled = false;
+          start.disabled =
+            gesture.disabled =
+            camera.disabled =
+            gestureChoice.disabled =
+              false;
         }
       }
     };
     keyboard.addEventListener("click", useKeyboard);
+    keyboardChoice.addEventListener("click", useKeyboard);
+    gestureChoice.addEventListener("click", () => {
+      void enableGestures();
+    });
     gesture.addEventListener("click", () => {
       void enableGestures();
     });
@@ -192,7 +243,6 @@ export class MainMenu extends Phaser.Scene {
     });
     start.addEventListener("click", () => {
       start.disabled = true;
-      launching = true;
       this.scene.start("MissionLoad");
     });
     screen
@@ -207,20 +257,53 @@ export class MainMenu extends Phaser.Scene {
           tracker.getStatus() !== "ready"
         ) {
           selectMode(true);
+          this.registry.set("controlChoiceMade", false);
+          showChoice(true);
           status.textContent = `${tracker.getError() ?? "Tracking stopped."} Keyboard & mouse are ready.`;
         }
       },
     });
+    selectMode(!cameraReady);
+    if (cameraReady)
+      status.textContent =
+        "Gesture control ready. Point + thumb flick to select.";
+    else if (keyboardChosen)
+      status.textContent =
+        "Keyboard & mouse ready. Enable gestures in GAME CONTROLS.";
+    const buttons = [...screen.querySelectorAll<HTMLButtonElement>("button")];
+    this.gestureMenu = new GestureMenuNavigator(this, tracker, () =>
+      buttons
+        .filter(
+          (button) => !button.disabled && button.getClientRects().length > 0,
+        )
+        .map((button) => {
+          const rect = button.getBoundingClientRect();
+          return {
+            id: button.id || `menu-option-${buttons.indexOf(button)}`,
+            bounds: {
+              x: rect.x,
+              y: rect.y,
+              width: rect.width,
+              height: rect.height,
+            },
+            activate: () => button.click(),
+          };
+        }),
+    );
     this.events.once("shutdown", () => {
       request++;
       if (introTimer !== undefined) window.clearTimeout(introTimer);
-      if (!launching) tracker.stop();
+      // Cancel abandoned permission/model setup, but keep a ready camera so
+      // credits, pause, retry and home are all reachable with gestures.
+      if (loading) tracker.stop();
+      this.gestureMenu = undefined;
       this.input.keyboard?.off("keydown-ESC", escape);
       this.stars = [];
     });
   }
 
   update(_time: number, delta: number) {
+    this.gestureMenu?.tick();
     for (const star of this.stars) {
       star.object.y += (star.speed * Math.min(delta, 100)) / 1000;
       if (star.object.y > this.scale.height) {
