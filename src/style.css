@@ -507,3 +507,72 @@ progress {
   width: 145px;
   height: 102px;
 }
+.briefing-screen {
+  background: transparent;
+}
+.mission-briefing {
+  width: min(1060px, 100%);
+  min-height: 620px;
+  text-align: center;
+}
+.mission-briefing h1 {
+  margin: 20px 0 10px;
+  font: 48px/1.2 Impact, "Century Gothic", sans-serif;
+  letter-spacing: 6px;
+  color: #ffe81f;
+}
+.briefing-wish {
+  margin: 0 0 28px;
+  font-size: 28px;
+  letter-spacing: 2px;
+  color: #ffe81f;
+}
+.briefing-stations {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.briefing-stations .station-guide {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.briefing-stations h2 {
+  grid-column: 1 / -1;
+}
+.briefing-keyboard {
+  margin: 30px 0 18px;
+  font: 13px/1.6 Courier, monospace;
+  color: #bfb68d;
+}
+.briefing-countdown {
+  margin: 0;
+  font: 20px/1.6 "Century Gothic", Futura, sans-serif;
+  letter-spacing: 3px;
+}
+.mission-briefing .secondary {
+  font-size: 16px;
+}
+@media (max-width: 700px) {
+  .mission-briefing h1 {
+    font-size: 32px;
+    letter-spacing: 3px;
+  }
+  .briefing-wish {
+    font-size: 20px;
+  }
+  .briefing-stations {
+    gap: 12px;
+  }
+  .briefing-stations .station-guide {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .briefing-stations .hand-pose {
+    width: 120px;
+    height: 90px;
+  }
+  .briefing-stations figcaption {
+    font-size: 10px;
+  }
+}

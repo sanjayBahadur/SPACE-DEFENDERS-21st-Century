@@ -55,8 +55,7 @@ export class GameOverScene extends Phaser.Scene {
             this.scene.stop('Tactical');
 
             // Restart them
-            this.scene.start('Strategic');
-            this.scene.launch('Tactical');
+            this.scene.start('MissionBriefing');
         });
 
         // Main Menu Button

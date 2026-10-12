@@ -246,7 +246,6 @@ export class MissionLoad extends Phaser.Scene {
   create() {
     this.game.events.off('step', this.tickLoadingMenu);
     if (this.failed) return;
-    this.scene.start("Strategic");
-    this.scene.launch("Tactical");
+    this.scene.start("MissionBriefing");
   }
 }
