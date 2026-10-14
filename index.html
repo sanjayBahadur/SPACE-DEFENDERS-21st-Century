@@ -2,12 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>space-defenders</title>
+    <meta
+      name="description"
+      content="Pilot your ship and defend it in a dual-view space arcade game. Play with keyboard and mouse or optional camera hand gestures."
+    />
+    <meta name="theme-color" content="#060b13" />
+    <title>Space Defenders · 21st Century</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="startup" class="startup" role="status">
+      <h1>Space Defenders</h1>
+      <p>Starting mission control…</p>
+      <noscript>Enable JavaScript to play Space Defenders.</noscript>
+    </div>
+    <div id="app" aria-label="Space Defenders game canvas"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

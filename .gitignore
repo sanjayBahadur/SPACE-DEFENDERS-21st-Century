@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local browser verification artifacts
+.playwright-cli/
+output/
+
+# Packaged production release
+space-defenders-site.zip

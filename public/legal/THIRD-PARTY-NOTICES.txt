@@ -1,0 +1,51 @@
+SPACE DEFENDERS — third-party notices
+
+Project source
+Repository: https://github.com/sanjayBahadur/SPACE-DEFENDERS-21st-Century
+The repository's Apache License 2.0 text is reproduced in project-license.txt.
+This does not establish ownership or licensing of third-party artwork or marks.
+
+Phaser 3.90.0 — game rendering and scene management
+Copyright (c) 2024 Richard Davey, Phaser Studio Inc.
+https://github.com/phaserjs/phaser
+License: MIT; full installed package license: phaser-license.txt.
+Phaser incorporates adapted components including RBush by Vladimir Agafonkin,
+Earcut, Quickselect, and Matter.js by Liam Brummitt and contributors.
+Upstream component license texts are included as rbush-license.txt,
+earcut-license.txt and quickselect-license.txt. Phaser's own source
+retains its component attribution. Matter.js's included MIT notice is reproduced
+in matter-license.txt. This game does not load the optional Spine plugins.
+
+eventemitter3 5.0.4 — Phaser runtime dependency
+Copyright (c) 2014 Arnout Kazemier
+https://github.com/primus/eventemitter3
+License: MIT; full installed package license: eventemitter3-license.txt.
+
+MediaPipe Tasks Vision 0.10.32 — hand landmark detection runtime
+Google / MediaPipe contributors
+https://github.com/google-ai-edge/mediapipe
+License: Apache License 2.0; full upstream text: mediapipe-license.txt.
+The four shipped vision_wasm_* JS/WASM files are unmodified copies of the
+installed @mediapipe/tasks-vision 0.10.32 package files (SHA-256 matches).
+
+MediaPipe Hand Landmarker float16 model bundle, version 1
+Google / MediaPipe
+https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
+The shipped bundle matches Google's official download byte for byte.
+The official Hand Tracking Lite/Full model card linked by Google's Hand
+Landmarker guide identifies Apache License 2.0. Text: mediapipe-license.txt.
+Guide: https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker
+Model card: https://storage.googleapis.com/mediapipe-assets/Model%20Card%20Hand%20Tracking%20%28Lite_Full%29%20with%20Fairness%20Oct%202021.pdf
+
+Artwork and theme
+The game reuses image assets supplied in the original project repository.
+Original creator/source and per-asset permission records are not documented.
+The lossless WebP conversion preserves these images; conversion does not
+establish ownership or grant additional rights. Star Wars references and marks
+belong to their respective owners; no affiliation or endorsement is claimed.
+Asset and model provenance details: docs/assets-and-models.md in the repository.
+
+Development tools
+TypeScript, Vite, tsx, Node.js, Playwright and Pillow support development,
+verification or asset conversion. They are not shipped as browser libraries.
+Their roles and versions are documented in docs/technology.md.
