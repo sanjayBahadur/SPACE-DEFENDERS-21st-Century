@@ -1,3 +1,4 @@
+import { gameAudio } from '../services/GameAudio';
 import Phaser from 'phaser';
 import { HandTracker } from '../services/HandTracker';
 import { frameLerp } from '../utils/combat';
@@ -48,6 +49,7 @@ export class Strategic extends Phaser.Scene {
     }
 
     create() {
+        gameAudio.setMode('gameplay');
         this.registry.set('pausePending', false);
         this.registry.set('gameOverPending', false);
         this.registry.set('missionSeconds', 0);
@@ -586,6 +588,7 @@ export class Strategic extends Phaser.Scene {
         const nextHull = applyHullHit(this.hullState, amount, this.time.now);
         if (nextHull === this.hullState) return false;
 
+        gameAudio.play('impact');
         // Visual feedback
         if (amount > 5) {
             const anim = Math.random() > 0.5 ? 'explosionV1' : 'explosionV2';
@@ -601,6 +604,7 @@ export class Strategic extends Phaser.Scene {
 
     private updateHull(nextHull: HullState) {
         if (this.isGameOver || nextHull === this.hullState) return;
+        if (this.hullState.health > 25 && nextHull.health <= 25) gameAudio.play('warning');
         this.hullState = nextHull;
         const barWidth = (this.hullState.health / 100) * 120;
         this.hullBar.setSize(barWidth, 8);

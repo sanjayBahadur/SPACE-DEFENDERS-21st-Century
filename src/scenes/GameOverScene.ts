@@ -1,3 +1,4 @@
+import { gameAudio } from '../services/GameAudio';
 import Phaser from 'phaser';
 import type { HandTracker } from '../services/HandTracker';
 import { GestureMenuNavigator, canvasBounds } from '../ui/GestureMenu';
@@ -12,6 +13,8 @@ export class GameOverScene extends Phaser.Scene {
     }
 
     create() {
+        gameAudio.setMode('defeat');
+        gameAudio.play('defeat');
         this.leaving = false;
         this.gestureMenu = undefined;
         this.menuTargets = [];
@@ -99,6 +102,7 @@ export class GameOverScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         hitArea.on('pointerover', () => {
+            gameAudio.play('hover');
             textObj.setColor('#FFFFFF');
             textObj.setScale(1.1);
         });
@@ -106,11 +110,12 @@ export class GameOverScene extends Phaser.Scene {
             textObj.setColor('#FFE81F');
             textObj.setScale(1.0);
         });
-        hitArea.on('pointerdown', callback);
+        const confirm = () => { gameAudio.play('confirm'); callback(); };
+        hitArea.on('pointerdown', confirm);
 
         container.add([hitArea, textObj]);
         this.menuTargets.push(() => ({
-            id: text, bounds: canvasBounds(this, hitArea.getBounds()), activate: callback,
+            id: text, bounds: canvasBounds(this, hitArea.getBounds()), activate: confirm,
         }));
         return container;
     }

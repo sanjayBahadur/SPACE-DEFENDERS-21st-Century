@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { gameAudio } from "./services/GameAudio";
 import "./style.css";
 import { Boot } from "./scenes/Boot";
 import { MissionLoad } from "./scenes/MissionLoad";
@@ -44,6 +45,7 @@ const config: Phaser.Types.Core.GameConfig = {
     postBoot: (gameInstance) => {
       // Expose tracker to scenes via registry
       gameInstance.registry.set("handTracker", handTracker);
+      gameAudio.install();
     },
   },
 };

@@ -1,3 +1,4 @@
+import { gameAudio } from '../services/GameAudio';
 import type Phaser from 'phaser';
 import type { HandTracker } from '../services/HandTracker';
 import type { HandData } from '../types/HandGesture';
@@ -106,6 +107,7 @@ export class GestureMenuNavigator {
     private readonly now: () => number;
     private disposed = false;
     private outlineVisible = false;
+    private audibleTarget: string | null = null;
     private readonly onShutdown = () => this.dispose();
 
     constructor(
@@ -149,6 +151,8 @@ export class GestureMenuNavigator {
         this.pointer.style.display = pointer ? 'block' : 'none';
         if (pointer) this.pointer.style.transform = `translate(${pointer.x - 15}px, ${pointer.y - 15}px)`;
         const target = selection.target;
+        if (target && target.id !== this.audibleTarget) gameAudio.play('hover');
+        this.audibleTarget = target?.id ?? null;
         this.pointer.dataset.target = String(!!target);
         this.outline.style.display = target ? 'block' : 'none';
         if (target) {

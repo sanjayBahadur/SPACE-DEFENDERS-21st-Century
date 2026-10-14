@@ -135,6 +135,71 @@ try {
     assert.equal(await page.locator('#hand-debug-canvas').count(), 0, 'Keyboard switch retained the skeleton overlay');
     await page.locator('#controls-menu [data-back]').click();
   });
+
+  await withPage('audio-controls-and-cannon', async (page) => {
+    await page.addInitScript(() => {
+      window.__audioSmoke = { decoded: 0, sources: [], music: null };
+      const NativeContext = window.AudioContext;
+      window.AudioContext = class extends NativeContext {
+        async decodeAudioData(data) {
+          const buffer = await super.decodeAudioData(data);
+          if (buffer.length > 0) window.__audioSmoke.decoded++;
+          return buffer;
+        }
+        createBufferSource() {
+          const node = super.createBufferSource();
+          const record = { loop: false, active: false };
+          window.__audioSmoke.sources.push(record);
+          const start = node.start.bind(node);
+          const stop = node.stop.bind(node);
+          node.start = (...args) => { record.loop = node.loop; record.active = true; start(...args); };
+          node.stop = (...args) => { record.active = false; stop(...args); };
+          node.addEventListener('ended', () => { record.active = false; });
+          return node;
+        }
+      };
+      const NativeAudio = window.Audio;
+      window.Audio = function (...args) {
+        const audio = new NativeAudio(...args);
+        window.__audioSmoke.music = audio;
+        return audio;
+      };
+    });
+    await page.goto(siteURL, { waitUntil: 'domcontentloaded' });
+    await page.locator('#audio-toggle').click();
+    assert.equal(await page.locator('#audio-toggle').getAttribute('aria-pressed'), 'true', 'First sound click muted audio');
+    await page.waitForFunction(() => window.__audioSmoke.decoded === 13, undefined, { timeout: 30000 });
+    await page.waitForFunction(() => window.__audioSmoke.music && !window.__audioSmoke.music.paused);
+    await page.locator('#skip-intro').click();
+    await page.locator('#keyboard-choice').click();
+    await page.locator('#settings').click();
+    await page.locator('#audio-toggle').click();
+    assert.match(await page.locator('#sound-toggle').textContent(), /OFF/, 'Settings mute label is stale');
+    assert.equal(await page.evaluate(() => window.__audioSmoke.music.paused), true);
+    await page.locator('#sound-toggle').click();
+    await page.locator('#music-volume').click();
+    assert.match(await page.locator('#music-volume').textContent(), /40%/);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('space-defenders-audio')).music), 0.4);
+    await page.locator('#settings-menu [data-back]').click();
+    await page.locator('#start-mission').click();
+    await page.locator('.mission-briefing').waitFor({ state: 'visible' });
+    await page.locator('.mission-briefing').waitFor({ state: 'detached', timeout: 10000 });
+    await page.keyboard.down('Space');
+    await page.waitForFunction(() => window.__audioSmoke.sources.some(source => source.loop && source.active));
+    await page.keyboard.press('Escape');
+    await page.locator('.pause-gesture-guides').waitFor({ state: 'visible' });
+    assert.equal(await page.evaluate(() => window.__audioSmoke.sources.some(source => source.loop && source.active)), false,
+      'Paused mission retained the cannon loop');
+    await page.keyboard.up('Space');
+    await page.locator('#audio-toggle').click();
+    assert.equal(await page.evaluate(() => window.__audioSmoke.sources.some(source => source.active)), false,
+      'Mute retained active effects');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('#audio-toggle').waitFor({ state: 'visible' });
+    await page.locator('#audio-toggle').click();
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('space-defenders-audio')).muted), false,
+      'Enabling previously muted sound was not saved');
+  });
   console.log(JSON.stringify({ siteURL, results }, null, 2));
 } finally {
   await browser?.close();

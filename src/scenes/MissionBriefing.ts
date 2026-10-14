@@ -1,3 +1,4 @@
+import { gameAudio } from '../services/GameAudio';
 import Phaser from 'phaser';
 import type { HandTracker } from '../services/HandTracker';
 import { GestureMenuNavigator } from '../ui/GestureMenu';
@@ -16,6 +17,8 @@ export class MissionBriefing extends Phaser.Scene {
     constructor() { super('MissionBriefing'); }
 
     create() {
+        gameAudio.setMode('briefing');
+        gameAudio.play('ready');
         this.leaving = false;
         this.lastSeconds = -1;
         this.launchAt = performance.now() + 4000;
@@ -58,6 +61,7 @@ export class MissionBriefing extends Phaser.Scene {
         this.gestureMenu?.tick();
         const seconds = Math.max(0, Math.ceil((this.launchAt - performance.now()) / 1000));
         if (seconds !== this.lastSeconds && this.countdown) {
+            if (seconds > 0) gameAudio.play('tick');
             this.lastSeconds = seconds;
             this.countdown.textContent = String(seconds);
         }
@@ -66,6 +70,8 @@ export class MissionBriefing extends Phaser.Scene {
     private launchMission() {
         if (this.leaving) return;
         this.leaving = true;
+        gameAudio.setMode('gameplay');
+        gameAudio.play('launch');
         (this.registry.get('handTracker') as HandTracker | undefined)?.getHands(true);
         this.scene.start('Strategic');
         this.scene.launch('Tactical');

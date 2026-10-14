@@ -576,3 +576,27 @@ progress {
     font-size: 10px;
   }
 }
+
+.audio-toggle {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  padding: 5px 9px;
+  border: 1px solid #ffe81f66;
+  background: #000c;
+  color: #ffe81f;
+  font: 11px/1.4 "Courier New", monospace;
+}
+
+#settings-menu .menu-heading { top: 20%; }
+#settings-menu .submenu-buttons { top: 60%; gap: 6px; }
+#settings-menu .menu-buttons button {
+  min-height: 36px;
+  padding: 6px 14px;
+  font-size: clamp(18px, 2vw, 24px);
+}
+@media (max-height: 520px) {
+  #settings-menu .menu-buttons button { min-height: 30px; padding: 2px 12px; font-size: 18px; }
+}

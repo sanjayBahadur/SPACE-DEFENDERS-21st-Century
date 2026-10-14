@@ -1,3 +1,4 @@
+import { gameAudio } from '../services/GameAudio';
 import Phaser from "phaser";
 import type { HandTracker } from "../services/HandTracker";
 import { mountScreen } from "../ui/screens";
@@ -19,6 +20,7 @@ export class MainMenu extends Phaser.Scene {
   }
 
   create() {
+    gameAudio.setMode(this.skipIntro ? "menu" : "intro");
     this.cameras.main.setBackgroundColor("#000000");
     this.stars = [];
     for (let i = 0; i < 200; i++) {
@@ -89,6 +91,9 @@ export class MainMenu extends Phaser.Scene {
                     <h1 class="menu-heading">SETTINGS</h1>
                     <nav class="menu-buttons submenu-buttons" aria-label="Settings">
                         <button id="camera-toggle" aria-pressed="false">CAMERA ACCESS: [OFF]</button>
+                        <button id="sound-toggle">SOUND: ON</button>
+                        <button id="music-volume">MUSIC VOLUME</button>
+                        <button id="effects-volume">EFFECTS VOLUME</button>
                         <button id="skeleton-toggle" aria-pressed="true">HAND SKELETON: [ON]</button>
                         <button data-back>BACK</button>
                     </nav>
@@ -97,12 +102,29 @@ export class MainMenu extends Phaser.Scene {
             </div>`,
     );
     screen.classList.add("classic-menu");
+    const sound = screen.querySelector<HTMLButtonElement>('#sound-toggle')!;
+    const musicVolume = screen.querySelector<HTMLButtonElement>('#music-volume')!;
+    const effectsVolume = screen.querySelector<HTMLButtonElement>('#effects-volume')!;
+    const audioLabels = () => {
+      sound.textContent = `SOUND: [${gameAudio.settings.muted ? 'OFF' : 'ON'}]`;
+      sound.setAttribute('aria-pressed', String(!gameAudio.settings.muted));
+      musicVolume.textContent = `MUSIC: ${Math.round(gameAudio.settings.music * 100)}% · CHANGE`;
+      effectsVolume.textContent = `EFFECTS: ${Math.round(gameAudio.settings.effects * 100)}% · CHANGE`;
+    };
+    sound.addEventListener('click', () => { gameAudio.configure({ muted: !gameAudio.settings.muted }); audioLabels(); });
+    const nextVolume = (value: number) => value >= 0.99 ? 0 : Math.min(1, Math.round((value + 0.2) * 5) / 5);
+    musicVolume.addEventListener('click', () => { gameAudio.configure({ music: nextVolume(gameAudio.settings.music) }); audioLabels(); });
+    effectsVolume.addEventListener('click', () => { gameAudio.configure({ effects: nextVolume(gameAudio.settings.effects) }); audioLabels(); });
+    audioLabels();
+    document.addEventListener('game-audio-change', audioLabels);
+    this.events.once('shutdown', () => document.removeEventListener('game-audio-change', audioLabels));
     const intro = screen.querySelector<HTMLElement>("#intro")!;
     const content = screen.querySelector<HTMLElement>("#menu-content")!;
     let introTimer: number | undefined;
     const finishIntro = () => {
       if (intro.hidden) return;
       if (introTimer !== undefined) window.clearTimeout(introTimer);
+      gameAudio.setMode("menu");
       intro.hidden = true;
       content.hidden = false;
       this.registry.set("introSeen", true);
@@ -116,6 +138,7 @@ export class MainMenu extends Phaser.Scene {
     else introTimer = window.setTimeout(finishIntro, 10000);
     screen.querySelector("#skip-intro")!.addEventListener("click", finishIntro);
     const showPage = (name: string) => {
+      if (name === 'controls') gameAudio.play('ready');
       for (const page of screen.querySelectorAll<HTMLElement>(".menu-page"))
         page.hidden = page.id !== `${name}-menu`;
       screen.querySelector<HTMLElement>(`#${name}-menu button`)?.focus();
