@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1 — 14 October 2026
+
+- Fix exaggerated horizontal menu cursor motion by using the mirrored index fingertip before gameplay zone expansion. Align it with the skeleton frame across home, pause and recovery menus.
+- Preserve Gunner aim, thumb-flick selection and dwell/cooldown protections. Reset menu smoothing after hand loss, stalled tracking and camera shutdown.
+- Add regression checks for fingertip alignment outside the gameplay active zone, screen offsets and invalid samples.
+
 ## 1.0.0 — 14 October 2026
 
 Promote the verified v0.9.4 desktop game to the first stable release. Gameplay, menu pointing and assets are unchanged. The menu pointer alignment improvement will follow separately in v1.0.1.

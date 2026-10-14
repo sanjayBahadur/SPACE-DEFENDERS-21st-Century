@@ -2,6 +2,7 @@ import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { HandTracker, type HandsResult, type HandTrackerStatus } from '../src/services/HandTracker.ts';
+import { GestureMenuController } from '../src/ui/GestureMenu.ts';
 
 function replaceGlobal(t: TestContext, name: string, value: unknown): void {
     const original = Object.getOwnPropertyDescriptor(globalThis, name);
@@ -58,6 +59,29 @@ function detect(tracker: HandTracker, now: number, hands: { side: string; landma
     };
     return state(tracker).updateHands(now);
 }
+
+test('menu cursor follows the mirrored index tip without gameplay zone expansion or clipping', () => {
+    for (const [cameraX, gameplayX] of [[0.35, 2 / 7], [0.5, 0], [0.05, 1]]) {
+        const tracker = new HandTracker();
+        const hand = pointingHand();
+        hand[8].x = cameraX;
+        const gunner = detect(tracker, 1000, [{ side: 'Right', landmarks: hand }]).gunner!;
+        assert.ok(Math.abs(gunner.x - gameplayX) < 1e-10, 'Gunner aiming must retain its existing mapping');
+        const target = { id: 'tip', bounds: { x: (1 - cameraX) * 1000 - 10, y: 140, width: 20, height: 20 }, activate() {} };
+        const selection = new GestureMenuController().update(gunner, [target], { width: 1000, height: 600 }, 0);
+        assert.deepEqual(selection.pointer, { x: (1 - cameraX) * 1000, y: 150 });
+        assert.equal(selection.target, target);
+    }
+});
+
+test('stopping tracking resets menu smoothing before a new camera session', () => {
+    const tracker = new HandTracker();
+    detect(tracker, 1000, [{ side: 'Right', landmarks: pointingHand() }]);
+    tracker.stop();
+    const hand = pointingHand().map(point => ({ ...point, x: point.x - 0.25 }));
+    const gunner = detect(tracker, 1034, [{ side: 'Right', landmarks: hand }]).gunner!;
+    assert.deepEqual(gunner.menuPointer, { x: 0.9, y: 0.25 });
+});
 
 test('constructing a tracker never requests the camera or starts browser work', t => {
     mockCamera(t, () => assert.fail('Construction requested camera permission'));
@@ -225,6 +249,7 @@ test('a missing gunner returns at its current position without a ghost thumb fli
     const returned = detect(tracker, 1068, [{ side: 'Right', landmarks: returningHand }]).gunner!;
     assert.equal(returned.x, 1, 'Reacquisition must not use the lost hand\'s cursor smoothing state');
     assert.equal(returned.flickDetected, false);
+    assert.deepEqual(returned.menuPointer, { x: 0.9, y: 0.25 });
 });
 
 test('a stalled inference stream resets motion even without an explicit missing-hand frame', () => {
@@ -236,6 +261,7 @@ test('a stalled inference stream resets motion even without an explicit missing-
     const returned = detect(tracker, 1251, [{ side: 'Right', landmarks: returningHand }]).gunner!;
     assert.equal(returned.x, 1);
     assert.equal(returned.flickDetected, false, 'A thumb pose changed while tracking was stale is not a fresh flick');
+    assert.deepEqual(returned.menuPointer, { x: 0.9, y: 0.25 });
 });
 
 test('pilot smoothing resets independently while the gunner remains tracked', () => {
