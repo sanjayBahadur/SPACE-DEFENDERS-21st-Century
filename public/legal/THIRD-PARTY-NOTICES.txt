@@ -49,3 +49,8 @@ Development tools
 TypeScript, Vite, tsx, Node.js, Playwright and Pillow support development,
 verification or asset conversion. They are not shipped as browser libraries.
 Their roles and versions are documented in docs/technology.md.
+
+AUDIO ASSETS (CC0 1.0)
+Kenney — Sci-fi Sounds and Interface Sounds; yd — Out There.
+See audio-notices.txt, kenney-scifi-audio.txt, kenney-interface-audio.txt
+and ../audio/manifest.json for source links, license statements and hashes.

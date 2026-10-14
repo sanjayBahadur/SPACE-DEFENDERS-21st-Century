@@ -77,3 +77,5 @@ Check the ten-second intro and Skip action, fresh-visit gesture choice, keyboard
 Real gesture accuracy and long-run performance need physical camera and representative hardware checks. Details are in the review.
 
 Created by Sanjay Malla / [sanjayBahadur](https://github.com/sanjayBahadur).
+
+Audio work is documented in [the sound cue map and free asset sources](docs/audio.md), including categories, licenses, volume controls and validation.

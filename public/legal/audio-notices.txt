@@ -1,0 +1,20 @@
+Space Defenders audio assets
+
+Kenney — Sci-fi Sounds (1.0), Interface Sounds (1.0)
+https://kenney.nl/assets/sci-fi-sounds
+https://kenney.nl/assets/interface-sounds
+License: CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+Supplied license files: kenney-scifi-audio.txt, kenney-interface-audio.txt
+
+"Out There" — yd, published 2011-12-30
+https://opengameart.org/content/space-music-out-there
+Original: https://opengameart.org/sites/default/files/OutThere_0.ogg
+License: CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Selected effects converted to mono 22050 Hz PCM WAV with a 5 ms fade-in.
+Warning shortened to 0.65 s with a 0.1 s fade-out.
+Music converted to 96 kbps MP3. Original and distributed checksums and
+filenames: ../audio/manifest.json. Full cue mapping: docs/audio.md in source.
+Credits are provided voluntarily; CC0 does not require attribution.
