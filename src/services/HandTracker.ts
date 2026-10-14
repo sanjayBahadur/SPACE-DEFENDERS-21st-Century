@@ -30,6 +30,7 @@ export class HandTracker {
     private pilotFilterY = createHandMotionFilter();
     private gunnerFilterX = createHandMotionFilter();
     private gunnerFilterY = createHandMotionFilter();
+    private menuFilterX = createHandMotionFilter();
     private lastGunnerThumbDist = -1;
     private lastDetectionTime = 0;
     private lastHandsUpdateTime = 0;
@@ -192,6 +193,7 @@ export class HandTracker {
         this.pilotFilterY = createHandMotionFilter();
         this.gunnerFilterX = createHandMotionFilter();
         this.gunnerFilterY = createHandMotionFilter();
+        this.menuFilterX = createHandMotionFilter();
         this.status = 'idle';
         this.error = null;
     }
@@ -349,6 +351,9 @@ export class HandTracker {
                 result.gunner = {
                     x: filteredX,
                     y: filteredY,
+                    // Menus follow the visible fingertip across the full camera
+                    // frame; gameplay keeps its existing right-station mapping.
+                    menuPointer: { x: this.menuFilterX.filter(clamp(x, 0, 1), now), y: filteredY },
                     gesture,
                     isLeft: false,
                     flickDetected,
@@ -369,6 +374,7 @@ export class HandTracker {
     private resetGunnerMotion(): void {
         this.gunnerFilterX = createHandMotionFilter();
         this.gunnerFilterY = createHandMotionFilter();
+        this.menuFilterX = createHandMotionFilter();
         this.lastGunnerThumbDist = -1;
     }
 

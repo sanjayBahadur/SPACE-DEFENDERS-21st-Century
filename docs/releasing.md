@@ -2,7 +2,7 @@
 
 Production target: <https://sanjayBahadur.github.io/SPACE-DEFENDERS-21st-Century/>.
 
-Gameplay is frozen for v1.0.0. Release changes cover packaging, documentation, checks and hosting.
+Gameplay remains frozen. v1.0.1 fixes menu fingertip positioning without changing Gunner aiming or combat.
 
 ## Verification
 

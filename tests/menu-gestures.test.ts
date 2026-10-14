@@ -25,6 +25,16 @@ test('right index pointing maps client pixels and hits only available menu bound
     }
 });
 
+test('menu fingertip coordinates respect skeleton frame offsets and reject invalid samples', () => {
+    const controller = new GestureMenuController();
+    const hand = pointing({ x: 2 / 7, menuPointer: { x: 0.65, y: 0.25 } });
+    assert.deepEqual(controller.update(hand, [], { x: 100, y: 50, width: 800, height: 450 }, 0).pointer,
+        { x: 620, y: 162.5 });
+    for (const menuPointer of [{ x: NaN, y: 0.25 }, { x: 0.65, y: Infinity }]) {
+        assert.equal(controller.update(pointing({ menuPointer }), targets, viewport, 0).pointer, null);
+    }
+});
+
 test('flick selection requires stable target acquisition and resets on target change', () => {
     const controller = new GestureMenuController();
     controller.update(pointing(), targets, viewport, 0);

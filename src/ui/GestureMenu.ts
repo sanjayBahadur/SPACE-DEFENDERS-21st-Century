@@ -59,15 +59,16 @@ export class GestureMenuController {
     update(
         hand: HandData | null,
         targets: MenuTarget[],
-        viewport: { width: number; height: number },
+        viewport: { x?: number; y?: number; width: number; height: number },
         now: number,
     ): GestureMenuSelection {
         const flick = hand?.flickDetected === true;
         const released = this.flickReleased;
         if (hand) this.flickReleased = !flick;
-        const canPoint = hand && !hand.isLeft && hand.indexExtended === true
+        const position = hand?.menuPointer ?? hand;
+        const canPoint = hand && position && !hand.isLeft && hand.indexExtended === true
             && hand.gesture !== 'PALM' && hand.gesture !== 'FIST'
-            && Number.isFinite(hand.x) && Number.isFinite(hand.y);
+            && Number.isFinite(position.x) && Number.isFinite(position.y);
         if (!canPoint) {
             this.targetId = null;
             this.flickReleased = false;
@@ -75,8 +76,8 @@ export class GestureMenuController {
         }
 
         const pointer = {
-            x: Math.max(0, Math.min(1, hand.x)) * viewport.width,
-            y: Math.max(0, Math.min(1, hand.y)) * viewport.height,
+            x: (viewport.x ?? 0) + Math.max(0, Math.min(1, position.x)) * viewport.width,
+            y: (viewport.y ?? 0) + Math.max(0, Math.min(1, position.y)) * viewport.height,
         };
         const target = targets.find(({ bounds }) => bounds.width > 0 && bounds.height > 0
             && pointer.x >= bounds.x && pointer.x <= bounds.x + bounds.width
@@ -136,10 +137,14 @@ export class GestureMenuNavigator {
     tick(): void {
         if (this.disposed) return;
         const { gunner } = this.tracker.getHands(true);
-        const selection = this.controller.update(gunner, this.targets(), {
+        // Use the skeleton's displayed frame, including any layout offsets.
+        // With skeleton feedback off, its full-window frame still applies.
+        const frame = document.getElementById('hand-debug-canvas');
+        const viewport = frame?.getBoundingClientRect() ?? {
             width: window.innerWidth,
             height: window.innerHeight,
-        }, this.now());
+        };
+        const selection = this.controller.update(gunner, this.targets(), viewport, this.now());
         const pointer = selection.pointer;
         this.pointer.style.display = pointer ? 'block' : 'none';
         if (pointer) this.pointer.style.transform = `translate(${pointer.x - 15}px, ${pointer.y - 15}px)`;
