@@ -42,8 +42,8 @@ Hand inference currently runs synchronously on the main browser thread, as descr
 | [Node.js test runner](https://nodejs.org/api/test.html) and `node:assert/strict` | Built into the executing Node.js version | Assertions and test execution in [tests](../tests). Coverage includes asset paths, heat/collision math, hull damage, filtering, tracker lifecycle/reacquisition and gesture menu selection. |
 | `@types/node` | 25.1.0 | Development-only Node type declarations; this is not the Node runtime version. |
 | Node.js / npm | Node 20.19+ or 22.12+ locally; CI uses Node 22 | Runs the toolchain; `npm ci` installs the lockfile. |
-| [GitHub Actions](https://docs.github.com/en/actions) | `actions/checkout@v4`, `actions/setup-node@v4` | [ci.yml](../.github/workflows/ci.yml) runs `npm ci`, `npm test` and `npm run build` on pushes and pull requests. No separate linter is configured. |
-| [Playwright](https://playwright.dev/docs/intro) | External development tool, not a project dependency | Browser automation used for local UI/gameplay checks and screenshots. It is not run by the repository's current CI workflow. Simulated hand input checks menu transitions; physical-camera testing remains necessary to evaluate gesture recognition quality. |
+| [GitHub Actions](https://docs.github.com/en/actions) | `actions/checkout@v4`, `actions/setup-node@v4` | [ci.yml](../.github/workflows/ci.yml) runs `npm ci`, `npm test` and `npm run build` on pushes and pull requests. The production browser checks run after the Pages-path build. No separate linter is configured. |
+| [Playwright](https://playwright.dev/docs/intro) | 1.64.1, development dependency | [smoke-production.mjs](../scripts/smoke-production.mjs) checks the built site in Chromium, including keyboard/menu transitions, denied-camera fallback and real model/WASM startup with a generated camera stream. CI and deployment run it before publication. Physical-hand recognition quality remains a separate hardware measurement. |
 
 ## Optional artwork tooling
 
