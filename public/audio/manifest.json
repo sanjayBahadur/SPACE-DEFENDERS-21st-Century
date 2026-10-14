@@ -1,5 +1,5 @@
 {
-  "license": "CC0-1.0",
+  "license": "Per-file: CC0-1.0 except heroic-theme.mp3 (CC-BY-3.0)",
   "files": [
     {
       "file": "hover.wav",
@@ -7,7 +7,8 @@
       "pack": "interface",
       "original": "select_001.ogg",
       "sourceSha256": "aec0c31ea934a35936ae0d2ab8fac8123c93aa5647f935853a58dbaf90278b7a",
-      "sha256": "512b90a271612f1b086bdc92bc2101278924edc7dcca679c3096153706949d02"
+      "sha256": "512b90a271612f1b086bdc92bc2101278924edc7dcca679c3096153706949d02",
+      "license": "CC0-1.0"
     },
     {
       "file": "confirm.wav",
@@ -15,7 +16,8 @@
       "pack": "interface",
       "original": "confirmation_001.ogg",
       "sourceSha256": "063564703b6094d70718a3e787a55cc9141611e4ecd6b6637f8828f79b4a8c3a",
-      "sha256": "b94c9ddb6b2460a94f29f5f65d394ef9e78e7fe0a55a1fd43f9dbb8a9e56f8a3"
+      "sha256": "b94c9ddb6b2460a94f29f5f65d394ef9e78e7fe0a55a1fd43f9dbb8a9e56f8a3",
+      "license": "CC0-1.0"
     },
     {
       "file": "back.wav",
@@ -23,7 +25,8 @@
       "pack": "interface",
       "original": "back_001.ogg",
       "sourceSha256": "07db973f79f6ae0f2edc34561e7592e24d0577455919fb602cb8ecc0da991dcf",
-      "sha256": "52ded8ece9d7b876ed9922dfa87d6735b1a4f8c119d40887161cb1be727b2cb3"
+      "sha256": "52ded8ece9d7b876ed9922dfa87d6735b1a4f8c119d40887161cb1be727b2cb3",
+      "license": "CC0-1.0"
     },
     {
       "file": "tick.wav",
@@ -31,7 +34,8 @@
       "pack": "interface",
       "original": "tick_001.ogg",
       "sourceSha256": "9d057b918024c787bbe6c00beed13a7ef72a3fa0c259add3cef36582792f4230",
-      "sha256": "cf093baedcc8e6e0decb4410de8455db6a4fb931b6e800f9dad58aac9ee36ef7"
+      "sha256": "cf093baedcc8e6e0decb4410de8455db6a4fb931b6e800f9dad58aac9ee36ef7",
+      "license": "CC0-1.0"
     },
     {
       "file": "launch.wav",
@@ -39,7 +43,8 @@
       "pack": "interface",
       "original": "open_001.ogg",
       "sourceSha256": "a27c6bb0df7da1e6af5dd5937593c98bc58b6e513f42fe6a3254cd6a6949c648",
-      "sha256": "cfd1bc2d5cae78f556bef65debf2d262d0768d30807a349d599c5b67547d4899"
+      "sha256": "cfd1bc2d5cae78f556bef65debf2d262d0768d30807a349d599c5b67547d4899",
+      "license": "CC0-1.0"
     },
     {
       "file": "pause.wav",
@@ -47,7 +52,8 @@
       "pack": "interface",
       "original": "close_001.ogg",
       "sourceSha256": "44af8249b933e0fd35ec957a638bb1a0b01f85b53fbe9674bf77bd3ca3168ef4",
-      "sha256": "040c44317ef7085ba8999a7da51b3d029c8690174c8d94d8b50528d5ebad49ab"
+      "sha256": "040c44317ef7085ba8999a7da51b3d029c8690174c8d94d8b50528d5ebad49ab",
+      "license": "CC0-1.0"
     },
     {
       "file": "defeat.wav",
@@ -55,7 +61,8 @@
       "pack": "interface",
       "original": "error_001.ogg",
       "sourceSha256": "46e67425d16339772e8d328fb36a49426c9467418686e11beeb71ff84b0f6433",
-      "sha256": "dc7ac1d37bc241e5c7ac3c7f1ed04653685ad9812d9ec9c28572f8a74f490866"
+      "sha256": "dc7ac1d37bc241e5c7ac3c7f1ed04653685ad9812d9ec9c28572f8a74f490866",
+      "license": "CC0-1.0"
     },
     {
       "file": "laser.wav",
@@ -63,7 +70,8 @@
       "pack": "scifi",
       "original": "laserSmall_002.ogg",
       "sourceSha256": "e70139466c3e801358c9041ee17db7ff82c0e9a9cdf44647ad0ea6b9f8458f63",
-      "sha256": "00562b34e1cac8ec89d775e5425b0c251ae4b0736e3b808d312133856613541e"
+      "sha256": "00562b34e1cac8ec89d775e5425b0c251ae4b0736e3b808d312133856613541e",
+      "license": "CC0-1.0"
     },
     {
       "file": "cannon.wav",
@@ -71,7 +79,8 @@
       "pack": "scifi",
       "original": "engineCircular_001.ogg",
       "sourceSha256": "e1df3a942842a24f7c4056db3177e8008edd73d4f3985fd95f55362bc85058bc",
-      "sha256": "5bbb951a777b0984ad60acddeff85414f5429f0ebba435c826bf89a047cad71a"
+      "sha256": "5bbb951a777b0984ad60acddeff85414f5429f0ebba435c826bf89a047cad71a",
+      "license": "CC0-1.0"
     },
     {
       "file": "explosion.wav",
@@ -79,15 +88,8 @@
       "pack": "scifi",
       "original": "explosionCrunch_000.ogg",
       "sourceSha256": "4b597d658d0ae101f0a030fbeea5fc3a4292ab85f017470a8254a8e7959cbd69",
-      "sha256": "dc0ea36f279bcacbf6aa55594311405ebfbd905958476f99fd94abff107706d9"
-    },
-    {
-      "file": "impact.wav",
-      "creator": "Kenney",
-      "pack": "scifi",
-      "original": "impactMetal_000.ogg",
-      "sourceSha256": "956c6612a256aa1a67a2327fffe2454f6b1d82e4c1c2be28fd66916335d5b1d6",
-      "sha256": "38bbf14ab00c5f3f38e77827a0eac75048511849d7224432348896e9c444062f"
+      "sha256": "dc0ea36f279bcacbf6aa55594311405ebfbd905958476f99fd94abff107706d9",
+      "license": "CC0-1.0"
     },
     {
       "file": "warning.wav",
@@ -96,7 +98,8 @@
       "original": "computerNoise_001.ogg",
       "sourceSha256": "29b4842f6d8c0ba2b0cb00bfaff3b852b492bb43197a82e697917aacbe106757",
       "sha256": "cdf9c1419e84621d8d068407f5fa1ef97de078613eced0394c16dc9c0a06af79",
-      "edit": "Trimmed to 0.65 s with 0.1 s fade-out"
+      "edit": "Trimmed to 0.65 s with 0.1 s fade-out",
+      "license": "CC0-1.0"
     },
     {
       "file": "ready.wav",
@@ -104,14 +107,108 @@
       "pack": "interface",
       "original": "confirmation_002.ogg",
       "sourceSha256": "33b17a9a9a2397c62b285c52c33a907fdffb476909c99e42dde603f6a7a8b12c",
-      "sha256": "2abec431c5f1c54fba521b107b8b9ad3d9e6142638696d9cf75cbe9173e42084"
+      "sha256": "2abec431c5f1c54fba521b107b8b9ad3d9e6142638696d9cf75cbe9173e42084",
+      "license": "CC0-1.0"
     },
     {
       "file": "out-there.mp3",
       "creator": "yd",
       "source": "https://opengameart.org/sites/default/files/OutThere_0.ogg",
       "sourceSha256": "6e02a32d963b84061cdeec66cc852e731e367c93ef572aa169b1baadbcdc20ba",
-      "sha256": "47c909dc30e27b3540e61aa8ca76176799f1a271d6031b042dce93f10a076d5b"
+      "sha256": "47c909dc30e27b3540e61aa8ca76176799f1a271d6031b042dce93f10a076d5b",
+      "license": "CC0-1.0"
+    },
+    {
+      "file": "engine.wav",
+      "creator": "Kenney",
+      "pack": "scifi",
+      "original": "spaceEngineLow_000.ogg",
+      "license": "CC0-1.0",
+      "edit": "Mono 22050 Hz WAV; fade-in",
+      "sourceSha256": "d7deee8d7217ce63aab802ad7365a59cacfd243392dc1bd03b0a9d454aa494df",
+      "sha256": "6eab7c0f37f1e5879af663f8b191d8e2ef59c3413bc8147389da0ec33cacb33c"
+    },
+    {
+      "file": "siphon.wav",
+      "creator": "Kenney",
+      "pack": "scifi",
+      "original": "forceField_004.ogg",
+      "license": "CC0-1.0",
+      "edit": "Mono 22050 Hz WAV; fade-in",
+      "sourceSha256": "05609bb296cbc287ae95ac8924c89809d69c89d7bb357cc6a117ec1b1ef65e09",
+      "sha256": "7d7af9659c34939f04d9ff1e81ddcbabcec4623d7c041e84755e4a0d4f924d47"
+    },
+    {
+      "file": "meteor-whoosh.wav",
+      "creator": "Kenney",
+      "pack": "scifi",
+      "original": "thrusterFire_000.ogg",
+      "license": "CC0-1.0",
+      "edit": "Mono 22050 Hz WAV; fade-in; shortened to 0.85 s with fade-out",
+      "sourceSha256": "0fdc474d93f209debf1fc4ea77765a669dcb7676db31b4d8a0a509685bccf374",
+      "sha256": "22c06b895d8c2c69dd1d84b79d9570bc5230805947677df10a8fc7a9d4765622"
+    },
+    {
+      "file": "meteor-impact.wav",
+      "creator": "Kenney",
+      "pack": "scifi",
+      "original": "explosionCrunch_004.ogg",
+      "license": "CC0-1.0",
+      "edit": "Mono 22050 Hz WAV; fade-in; shortened to 1.1 s with fade-out",
+      "sourceSha256": "9c3a1c73cadf0de5d5a578b31a264f20b1ac7cb6ec9bbd34a203f58402ea5390",
+      "sha256": "7a1b3f11ce1530aedafb1ea2788dd7f4a4e96f0483ae6eedf5fd14d6754b3f40"
+    },
+    {
+      "file": "enemy-laser.wav",
+      "creator": "Kenney",
+      "pack": "scifi",
+      "original": "laserLarge_003.ogg",
+      "license": "CC0-1.0",
+      "edit": "Mono 22050 Hz WAV; fade-in; shortened to 1.2 s with fade-out",
+      "sourceSha256": "3c7b3c9d856ee31fa1b92d29322f6ee472446627381595baeaba2af35c07135f",
+      "sha256": "a669edbbc645ca46bf0fb91c51fb94c233c0a5ceb41a7999dd7770fadb438ce1"
+    },
+    {
+      "file": "enemy-shot.wav",
+      "creator": "Kenney",
+      "pack": "scifi",
+      "original": "laserRetro_001.ogg",
+      "license": "CC0-1.0",
+      "edit": "Mono 22050 Hz WAV; fade-in; shortened to 0.6 s with fade-out",
+      "sourceSha256": "a0a99efaa755594982d5dfebf3d9cecaed5249bdf1f0de29cf26ca9ea24c191a",
+      "sha256": "e558719b34d4968b8f821d06ff2ad55313ab97352c123ceae587b4f71a6e5de8"
+    },
+    {
+      "file": "enemy-charge.wav",
+      "creator": "Kenney",
+      "pack": "scifi",
+      "original": "forceField_000.ogg",
+      "license": "CC0-1.0",
+      "edit": "Mono 22050 Hz WAV; fade-in; shortened to 0.3 s with fade-out",
+      "sourceSha256": "c2916f2a062c8ddd1aca2826d134fe90847037db31342726ffb0f9097afe339c",
+      "sha256": "b5d497794d6866aec228cb2006af6f998f82a8e64d9c5b3abea2d590e9766449"
+    },
+    {
+      "file": "impact.wav",
+      "creator": "Kenney",
+      "pack": "scifi",
+      "original": "impactMetal_003.ogg",
+      "license": "CC0-1.0",
+      "edit": "Mono 22050 Hz WAV; fade-in; shortened to 0.6 s with fade-out",
+      "sourceSha256": "ef29c3943ee701616f65e3d596c13eb3ff6b11ca5b3ac01e7bc923366a5c6f76",
+      "sha256": "79bdaeac68c7ba230cee843e8f3e8d91bb0744f2da535a2c2da08840cb507e74"
+    },
+    {
+      "file": "heroic-theme.mp3",
+      "creator": "Telaron",
+      "title": "Space Marines",
+      "source": "https://opengameart.org/content/space-marines",
+      "download": "https://opengameart.org/sites/default/files/terradorian%27s%20theme%20song.mp3",
+      "license": "CC-BY-3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+      "edit": "First 20 seconds, 0.15 s fade-in, 2 s fade-out; re-encoded 128 kbps MP3",
+      "sourceSha256": "dfdb6aa4ca5510bce0bd415a36f9abcca0387b920868c7ea71af29ed2b1d116a",
+      "sha256": "d34fb3e3c663f4c837b3f8047adbbfffb928ce1012187422c23fc2bb292a857b"
     }
   ]
 }
