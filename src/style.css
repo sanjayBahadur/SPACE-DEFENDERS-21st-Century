@@ -207,7 +207,7 @@ button:disabled {
   animation: credits-crawl 15s linear forwards;
 }
 .credits-crawl .crawl-body {
-  font-size: clamp(22px, 3vw, 40px);
+  font-size: clamp(18px, 2.2vw, 28px);
   line-height: 1.5;
 }
 @keyframes intro-crawl {
@@ -229,8 +229,8 @@ button:disabled {
     opacity: 1;
   }
   to {
-    top: -220%;
-    transform: rotateX(25deg) translateZ(-250px);
+    top: -10%;
+    transform: rotateX(25deg) translate3d(0, -100%, -250px);
     opacity: 0.2;
   }
 }
@@ -599,4 +599,16 @@ progress {
 }
 @media (max-height: 520px) {
   #settings-menu .menu-buttons button { min-height: 30px; padding: 2px 12px; font-size: 18px; }
+}
+
+.audio-credits-link {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  z-index: 2;
+  pointer-events: auto;
+  color: #ffe81f;
+  font: 12px/1.5 "Courier New", monospace;
+  background: #000c;
+  padding: 6px;
 }

@@ -57,13 +57,22 @@ export class Credits extends Phaser.Scene {
                 <div class="crawl-body">
                     <p><strong>SPACE DEFENDERS TEAM</strong><br>Sanjay Malla<br>(sanjayBahadur)</p>
                     <p><strong>LIBRARIES & TECH</strong><br>Phaser 3 · MediaPipe Hands<br>TypeScript · Vite</p>
-                    <p><strong>AUDIO</strong><br>Kenney · Sci-fi / Interface Sounds<br>yd · Out There (CC0)</p>
+                    <p><strong>PROMOTIONAL VIDEO</strong><br>Masyn Akira Knight</p>
+                    <p><strong>BETA TESTERS</strong><br>Masyn Akira Knight<br>Jackson Poynor · Max</p>
+                    <p><strong>AUDIO</strong><br>Kenney · Sci-fi / Interface Sounds (CC0)<br>yd · Out There (CC0)<br>Telaron · Space Marines (CC BY 3.0)<br>Opening excerpt, edited for this game</p>
                     <p><strong>SPECIAL THANKS</strong><br>Maddiem and Naviya<br>(for no reason)<br>and all the Open Source Contributors</p>
                     <p>The Force will be with you.<br>Always.</p>
                 </div>
             </div>
         `;
 
+        const audioCredits = document.createElement('a');
+        audioCredits.className = 'audio-credits-link';
+        audioCredits.href = `${import.meta.env.BASE_URL}legal/audio-notices.txt`;
+        audioCredits.target = '_blank';
+        audioCredits.rel = 'noopener';
+        audioCredits.textContent = 'AUDIO SOURCES & LICENSES';
+        overlay.appendChild(audioCredits);
         document.body.appendChild(overlay);
         this.domElement = overlay;
         const backButton = overlay.querySelector<HTMLButtonElement>('.crawl-skip')!;

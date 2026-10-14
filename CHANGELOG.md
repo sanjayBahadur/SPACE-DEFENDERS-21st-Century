@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — audio branch
+
+- Add gesture-accessible sound controls, saved music/effect volumes, scene mixes and bounded action feedback.
+- Use a credited heroic sci-fi theme for intro/credits, with quiet cockpit ambience elsewhere.
+- Add movement-driven engine hum, damaging black-hole siphon, meteor approach/impact and distinct enemy shots/rays.
+- Credit Masyn Akira Knight for the promotional video and Masyn Akira Knight, Jackson Poynor and Max as beta testers.
+- Document audio sources, per-file licenses and edits; verify audio loading, music switching and loop cleanup.
+
 ## 1.0.1 — 14 October 2026
 
 - Fix exaggerated horizontal menu cursor motion by using the mirrored index fingertip before gameplay zone expansion. Align it with the skeleton frame across home, pause and recovery menus.
