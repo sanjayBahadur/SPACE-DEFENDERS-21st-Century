@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GameAudio, readAudioSettings } from '../src/services/GameAudio.ts';
+import { GameAudio, readAudioSettings, EFFECTS, engineIntensity, musicForMode } from '../src/services/GameAudio.ts';
 
 function rig() {
     const audio = new GameAudio();
@@ -17,7 +17,7 @@ function rig() {
     };
     const music = { volume: 0, paused: true, play() { this.paused = false; return Promise.resolve(); }, pause() { this.paused = true; } };
     const state = audio as unknown as { context: unknown; buffers: Map<string, unknown>; music: unknown; hidden: boolean };
-    Object.assign(state, { context, music, buffers: new Map(['laser', 'cannon', 'warning', 'explosion'].map(cue => [cue, {}])) });
+    Object.assign(state, { context, music, buffers: new Map(EFFECTS.map(cue => [cue, {}])) });
     return { audio, context, music, state, starts: () => starts, stops: () => stops };
 }
 
@@ -69,4 +69,37 @@ test('hidden or locked audio stays silent and pause music stays below gameplay m
     assert.ok(r.music.volume < gameplayVolume);
     r.audio.configure({ muted: true });
     assert.equal(r.music.paused, true);
+});
+
+
+test('engine intensity follows actual movement consistently across frame rates and viewport sizes', () => {
+    assert.equal(engineIntensity(0, 16, 640), 0);
+    assert.equal(engineIntensity(0.01, 16, 640), 0, 'Subpixel settling should stay quiet');
+    assert.equal(engineIntensity(10, 1000 / 60, 640), engineIntensity(20, 1000 / 30, 640));
+    assert.equal(engineIntensity(10, 1000 / 60, 640), engineIntensity(20, 1000 / 60, 1280));
+    assert.equal(engineIntensity(1000, 16, 640), 1);
+    for (const value of [NaN, Infinity, -1]) assert.equal(engineIntensity(value, 16, 640), 0);
+});
+
+test('engine and siphon have independent loop ownership and stop outside gameplay', () => {
+    const r = rig(); r.audio.setMode('gameplay');
+    for (let i = 0; i < 100; i++) { r.audio.engine(0.5); r.audio.siphon(true); }
+    assert.equal(r.starts(), 2);
+    r.audio.siphon(false);
+    assert.equal(r.stops(), 1, 'Leaving a damaging core must stop only siphoning');
+    r.audio.engine(0);
+    assert.equal(r.stops(), 2, 'An idle ship must not hum');
+    r.audio.engine(0.8); r.audio.siphon(true); r.audio.setMode('pause');
+    assert.equal(r.stops(), 4);
+    r.audio.engine(1); r.audio.siphon(true);
+    assert.equal(r.starts(), 4);
+    r.audio.setMode('gameplay'); r.audio.engine(0.8); r.audio.siphon(true);
+    r.audio.setMode('defeat');
+    assert.equal(r.stops(), 6);
+});
+
+test('opening and credits use the heroic theme while the cockpit retains quiet ambience', () => {
+    assert.equal(musicForMode('intro'), 'heroic-theme.mp3');
+    assert.equal(musicForMode('credits'), 'heroic-theme.mp3');
+    for (const mode of ['menu', 'briefing', 'gameplay', 'pause'] as const) assert.equal(musicForMode(mode), 'out-there.mp3');
 });

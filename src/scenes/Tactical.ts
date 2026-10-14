@@ -640,6 +640,7 @@ export class Tactical extends Phaser.Scene {
     private fireEnemyV3Ray(enemy: any) {
         if (this.isGameOver || !enemy.active) return;
 
+        gameAudio.play('enemy-charge', 400);
         // Visual warning
         const warning = this.add.circle(enemy.x, enemy.y, 10, 0xff0000, 0.5);
         this.tweens.add({
@@ -650,6 +651,7 @@ export class Tactical extends Phaser.Scene {
             onComplete: () => {
                 warning.destroy();
                 if (!enemy.active) return;
+                if (!this.isGameOver) gameAudio.play('enemy-laser', 150);
 
                 this.cameras.main.flash(200, 255, 0, 0);
                 this.cameras.main.shake(300, 0.015);
@@ -670,6 +672,7 @@ export class Tactical extends Phaser.Scene {
     private spawnMissile(startX: number, startY: number, type: 'V1' | 'V2' = 'V1') {
         if (this.isGameOver) return;
 
+        gameAudio.play('enemy-shot', 120);
         // Modern missile design (energy orb with trail)
         const missile = this.add.container(startX, startY);
 

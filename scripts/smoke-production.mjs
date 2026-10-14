@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
@@ -8,6 +8,8 @@ const basePath = process.env.SMOKE_BASE_PATH || '/SPACE-DEFENDERS-21st-Century/'
 const externalURL = process.env.SMOKE_BASE_URL;
 const siteURL = externalURL || `http://127.0.0.1:4185${basePath}`;
 const artifactDir = 'output/production-smoke';
+const audioManifest = JSON.parse(await readFile(new URL('../public/audio/manifest.json', import.meta.url)));
+const effectCount = audioManifest.files.filter(file => file.file.endsWith('.wav')).length;
 let server;
 let browser;
 const results = [];
@@ -98,6 +100,10 @@ try {
     }
     await page.locator('#credits').click();
     await page.locator('.credits-crawl').waitFor({ state: 'visible' });
+    const credits = await page.locator('.credits-crawl').textContent();
+    for (const name of ['Masyn Akira Knight', 'Jackson Poynor', 'Max', 'Telaron', 'Space Marines']) assert.ok(credits.includes(name), `Missing credit: ${name}`);
+    const attribution = await page.request.get(new URL('legal/audio-notices.txt', siteURL).href);
+    assert.equal(attribution.status(), 200);
     await page.locator('.crawl-skip').click();
     await page.locator('#start-mission').waitFor({ state: 'visible' });
     assert.equal(models.length, 0, 'Keyboard play unexpectedly downloaded camera models');
@@ -168,9 +174,11 @@ try {
     await page.goto(siteURL, { waitUntil: 'domcontentloaded' });
     await page.locator('#audio-toggle').click();
     assert.equal(await page.locator('#audio-toggle').getAttribute('aria-pressed'), 'true', 'First sound click muted audio');
-    await page.waitForFunction(() => window.__audioSmoke.decoded === 13, undefined, { timeout: 30000 });
     await page.waitForFunction(() => window.__audioSmoke.music && !window.__audioSmoke.music.paused);
+    assert.ok(await page.evaluate(() => window.__audioSmoke.music.src.endsWith('/heroic-theme.mp3')), 'Opening did not use heroic theme');
     await page.locator('#skip-intro').click();
+    await page.waitForFunction(() => window.__audioSmoke.music.src.endsWith('/out-there.mp3'));
+    await page.waitForFunction(count => window.__audioSmoke.decoded === count, effectCount, { timeout: 30000 });
     await page.locator('#keyboard-choice').click();
     await page.locator('#settings').click();
     await page.locator('#audio-toggle').click();

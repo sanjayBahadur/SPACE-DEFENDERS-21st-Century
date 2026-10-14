@@ -1,6 +1,14 @@
 export type AudioMode = 'intro' | 'menu' | 'credits' | 'briefing' | 'gameplay' | 'pause' | 'defeat';
-export const EFFECTS = ['hover', 'confirm', 'back', 'tick', 'launch', 'pause', 'defeat', 'laser', 'cannon', 'explosion', 'impact', 'warning', 'ready'] as const;
+export const EFFECTS = ['hover', 'confirm', 'back', 'tick', 'launch', 'pause', 'defeat', 'laser', 'cannon', 'explosion', 'impact', 'warning', 'ready', 'engine', 'siphon', 'meteor-whoosh', 'meteor-impact', 'enemy-laser', 'enemy-shot', 'enemy-charge'] as const;
 export type SoundCue = typeof EFFECTS[number];
+type LoopCue = 'cannon' | 'engine' | 'siphon';
+export const musicForMode = (mode: AudioMode) => mode === 'intro' || mode === 'credits' ? 'heroic-theme.mp3' : 'out-there.mp3';
+/** Actual displacement controls thrust audio, including inertia and gravity. */
+export function engineIntensity(distance: number, deltaMs: number, width: number): number {
+    if (!Number.isFinite(distance) || !Number.isFinite(deltaMs) || !Number.isFinite(width) || deltaMs <= 0 || width <= 0) return 0;
+    const speed = distance * 1000 / deltaMs / width;
+    return speed < 0.012 ? 0 : Math.min(1, 0.2 + speed * 0.7);
+}
 export interface AudioSettings { muted: boolean; music: number; effects: number }
 const defaults: AudioSettings = { muted: false, music: 0.22, effects: 0.6 };
 export function readAudioSettings(value: string | null): AudioSettings {
@@ -20,9 +28,8 @@ export class GameAudio {
     private buffers = new Map<SoundCue, AudioBuffer>();
     private active = new Map<AudioBufferSourceNode, SoundCue>();
     private lastCue = new Map<SoundCue, number>();
-    private beam?: AudioBufferSourceNode;
-    private beamGain?: GainNode;
-    private beamWanted = false;
+    private loops = new Map<LoopCue, { node: AudioBufferSourceNode; gain: GainNode; level: number }>();
+    private musicTrack = '';
     private unlocked = false;
     private hidden = false;
     private installed = false;
@@ -79,7 +86,8 @@ export class GameAudio {
             this.context = new AudioContext();
             this.unlocked = true;
             void this.context.resume().catch(() => {});
-            this.music = new Audio(`${this.base}out-there.mp3`);
+            this.musicTrack = musicForMode(this.mode);
+            this.music = new Audio(`${this.base}${this.musicTrack}`);
             this.music.loop = true;
             this.music.preload = 'none';
             for (const cue of EFFECTS) {
@@ -88,7 +96,6 @@ export class GameAudio {
                     return response.arrayBuffer();
                 }).then(data => this.context!.decodeAudioData(data)).then(buffer => {
                     this.buffers.set(cue, buffer);
-                    if (cue === 'cannon' && this.beamWanted) this.cannon(true);
                 }).catch(() => { /* A missing sound must never stop a mission. */ });
             }
         } catch { /* Play silently when audio is unsupported. */ }
@@ -127,29 +134,43 @@ export class GameAudio {
         node.start();
     }
 
-    cannon(firing: boolean): void {
-        this.beamWanted = firing;
-        if (!firing || this.mode !== 'gameplay' || this.hidden || this.settings.muted || this.settings.effects === 0) {
-            if (this.beam && this.context) {
-                this.beamGain?.gain.setTargetAtTime(0, this.context.currentTime, 0.008);
-                this.beam.stop(this.context.currentTime + 0.04);
+    cannon(firing: boolean): void { this.loop('cannon', firing ? 1 : 0); }
+    engine(intensity: number): void { this.loop('engine', intensity); }
+    siphon(damaging: boolean): void { this.loop('siphon', damaging ? 1 : 0); }
+
+    private loop(cue: LoopCue, intensity: number): void {
+        const level = Number.isFinite(intensity) ? Math.max(0, Math.min(1, intensity)) : 0;
+        const existing = this.loops.get(cue);
+        if (level === 0 || this.mode !== 'gameplay' || this.hidden || this.settings.muted || this.settings.effects === 0 || this.context?.state !== 'running') {
+            if (existing && this.context) {
+                existing.gain.gain.setTargetAtTime(0, this.context.currentTime, 0.008);
+                existing.node.stop(this.context.currentTime + 0.04);
+                this.loops.delete(cue);
             }
-            this.beam = undefined; this.beamGain = undefined;
             return;
         }
-        const buffer = this.buffers.get('cannon');
-        if (this.beam || !buffer || !this.context || this.context.state !== 'running') return;
+        const mix = cue === 'engine' ? 0.12 : cue === 'siphon' ? 0.24 : 0.28;
+        if (existing) {
+            if (Math.abs(existing.level - level) > 0.02) {
+                existing.gain.gain.setTargetAtTime(this.settings.effects * mix * level, this.context.currentTime, 0.05);
+                existing.level = level;
+            }
+            return;
+        }
+        const buffer = this.buffers.get(cue);
+        if (!buffer || !this.context) return;
         const node = this.context.createBufferSource();
         const gain = this.context.createGain();
         node.buffer = buffer; node.loop = true;
-        gain.gain.value = this.settings.effects * 0.28;
+        gain.gain.value = 0;
+        gain.gain.setTargetAtTime(this.settings.effects * mix * level, this.context.currentTime, 0.02);
         node.connect(gain).connect(this.context.destination);
         node.onended = () => { node.disconnect(); gain.disconnect(); };
-        node.start(); this.beam = node; this.beamGain = gain;
+        node.start(); this.loops.set(cue, { node, gain, level });
     }
 
     private stopEffects(preserveInterface = false): void {
-        this.cannon(false);
+        this.cannon(false); this.engine(0); this.siphon(false);
         for (const [node, cue] of this.active) {
             if (preserveInterface && ['hover', 'confirm', 'back', 'launch', 'ready', 'tick'].includes(cue)) continue;
             node.stop(); this.active.delete(node);
@@ -162,6 +183,12 @@ export class GameAudio {
             this.toggle.setAttribute('aria-pressed', String(this.unlocked && !this.settings.muted));
         }
         if (!this.music) return;
+        const track = musicForMode(this.mode);
+        if (track !== this.musicTrack) {
+            this.music.pause();
+            this.music.src = `${this.base}${track}`;
+            this.musicTrack = track;
+        }
         this.music.volume = this.settings.music * (this.mode === 'pause' ? 0.18 : this.mode === 'gameplay' ? 0.6 : 1);
         if (this.hidden || this.settings.muted || this.settings.music === 0 || this.mode === 'defeat') this.music.pause();
         else if (this.music.paused) void this.music.play().catch(() => {});

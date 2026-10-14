@@ -1,4 +1,4 @@
-import { gameAudio } from '../services/GameAudio';
+import { gameAudio, engineIntensity } from '../services/GameAudio';
 import Phaser from 'phaser';
 import { HandTracker } from '../services/HandTracker';
 import { frameLerp } from '../utils/combat';
@@ -50,6 +50,7 @@ export class Strategic extends Phaser.Scene {
 
     create() {
         gameAudio.setMode('gameplay');
+        this.events.once('shutdown', () => { gameAudio.engine(0); gameAudio.siphon(false); });
         this.registry.set('pausePending', false);
         this.registry.set('gameOverPending', false);
         this.registry.set('missionSeconds', 0);
@@ -298,6 +299,7 @@ export class Strategic extends Phaser.Scene {
         // Reset speed multiplier (black holes will modify it)
         this.shipSpeedMultiplier = 1;
 
+        let siphoning = false;
         // === BLACK HOLE GRAVITY WITH RINGS ===
         this.blackHoles.getChildren().forEach((holeContainer: any) => {
             const hole = holeContainer;
@@ -327,7 +329,9 @@ export class Strategic extends Phaser.Scene {
                             this.shipTarget.x += (dx / Math.max(dist, 1)) * corePull;
                             this.shipTarget.y += (dy / Math.max(dist, 1)) * corePull;
                         }
-                        this.updateHull(applyHullExposure(this.hullState, BLACK_HOLE_DAMAGE_PER_SECOND, delta));
+                        const exposedHull = applyHullExposure(this.hullState, BLACK_HOLE_DAMAGE_PER_SECOND, delta);
+                        siphoning ||= exposedHull.health < this.hullState.health;
+                        this.updateHull(exposedHull);
                     }
                 }
             }
@@ -337,14 +341,20 @@ export class Strategic extends Phaser.Scene {
             if (hole.life <= 0) hole.destroy();
         });
 
+        gameAudio.siphon(siphoning && !this.isGameOver);
+
         this.shipTarget.x = Phaser.Math.Clamp(this.shipTarget.x, 30, vw - 30);
         this.shipTarget.y = Phaser.Math.Clamp(this.shipTarget.y, 30, vh - 30);
 
         // Ship Movement (affected by speed multiplier)
         const baseLerp = this.isGrabbing ? PILOT_FOLLOW_AT_60_HZ : 0.015;
         const lerpFactor = frameLerp(baseLerp * this.shipSpeedMultiplier, delta);
+        const previousX = this.ship.x;
+        const previousY = this.ship.y;
         this.ship.x = Phaser.Math.Linear(this.ship.x, this.shipTarget.x, lerpFactor);
         this.ship.y = Phaser.Math.Linear(this.ship.y, this.shipTarget.y, lerpFactor);
+
+        gameAudio.engine(this.isGameOver ? 0 : engineIntensity(Math.hypot(this.ship.x - previousX, this.ship.y - previousY), delta, vw));
 
         // Ship rotation
         const moveDx = this.shipTarget.x - this.ship.x;
@@ -381,7 +391,10 @@ export class Strategic extends Phaser.Scene {
                 shrink(shipBounds, 0.7),
                 shrink(meteorBounds, 0.7)
             )) {
-                if (this.takeDamage(METEOR_HULL_DAMAGE)) this.createImpact(meteor.x, meteor.y);
+                if (this.takeDamage(METEOR_HULL_DAMAGE)) {
+                    gameAudio.play('meteor-impact', 150);
+                    this.createImpact(meteor.x, meteor.y);
+                }
                 meteor.destroy();
             }
         });
@@ -446,6 +459,7 @@ export class Strategic extends Phaser.Scene {
     private spawnMeteor(x: number, y: number, vy: number) {
         if (this.isGameOver) return;
 
+        gameAudio.play('meteor-whoosh', 500);
         const meteor = this.add.sprite(x, y, 'meteor1');
         meteor.play('meteor_anim');
 
@@ -527,6 +541,7 @@ export class Strategic extends Phaser.Scene {
     }
 
     private showDeathRayWarning(creature: Phaser.GameObjects.Sprite, isHorizontal: boolean, rayPos: number, vw: number, vh: number) {
+        gameAudio.play('enemy-charge', 400);
         // Create visible red warning zone
         let warningZone: Phaser.GameObjects.Rectangle;
 
@@ -555,6 +570,7 @@ export class Strategic extends Phaser.Scene {
     private fireDeathRay(creature: Phaser.GameObjects.Sprite, isHorizontal: boolean, rayPos: number, vw: number) {
         if (this.isGameOver || !creature.active) return;
 
+        gameAudio.play('enemy-laser', 150);
         const ray = this.add.sprite(vw / 2, rayPos, 'deathray1');
         ray.play('deathray_anim');
         ray.setDisplaySize(vw, 45);
