@@ -25,7 +25,8 @@ by Telaron, published 2010-09-10 for The War of Terrador.
 Source: https://opengameart.org/content/space-marines
 License: Creative Commons Attribution 3.0 Unported (CC BY 3.0)
 https://creativecommons.org/licenses/by/3.0/
-Changes: first 20 seconds excerpted, 0.15 s fade-in, 2 s fade-out;
+Changes: 20-second excerpt starting at 0.46 s (leading silence removed),
+5 ms fade-in, 2 s fade-out;
 re-encoded as 128 kbps MP3. Used for opening and credits.
 This attribution and license apply to heroic-theme.mp3, not the other assets.
 

@@ -48,7 +48,7 @@ Kenney effects and yd ambience are **CC0 1.0**. The intro/credits theme is **CC 
 - **Kenney — [Interface Sounds](https://kenney.nl/assets/interface-sounds)**, 100 effects, CC0. Selected originals: `select_001.ogg`, `confirmation_001.ogg`, `back_001.ogg`, `tick_001.ogg`, `open_001.ogg`, `close_001.ogg`, `error_001.ogg`, `confirmation_002.ogg`.
 - **yd — [Space Music: Out There](https://opengameart.org/content/space-music-out-there)**, approximately four minutes of space background music, CC0. Original download: <https://opengameart.org/sites/default/files/OutThere_0.ogg>.
 
-- **Telaron — [Space Marines](https://opengameart.org/content/space-marines)**, heroic sci-fi instrumental composition for The War of Terrador. **CC BY 3.0**: <https://creativecommons.org/licenses/by/3.0/>. The opening 20 seconds are excerpted with fades and re-encoded as 128 kbps MP3 for intro/credits.
+- **Telaron — [Space Marines](https://opengameart.org/content/space-marines)**, heroic sci-fi instrumental composition for The War of Terrador. **CC BY 3.0**: <https://creativecommons.org/licenses/by/3.0/>. A 20-second excerpt starts at 0.46 s to remove the original leading silence, with a 5 ms fade-in and 2 s fade-out and re-encoded as 128 kbps MP3 for intro/credits.
 
 Creator credits are included in the credits screen and `public/legal/audio-notices.txt`. Kenney's supplied licenses are retained alongside the other distribution notices. `public/audio/manifest.json` records the original filenames and SHA-256 of each source and distributed file.
 

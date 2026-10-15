@@ -2,6 +2,8 @@
 
 ## Unreleased — audio branch
 
+- Trim the intro/credits theme's 0.46-second opening silence for an immediate musical start.
+
 - Add gesture-accessible sound controls, saved music/effect volumes, scene mixes and bounded action feedback.
 - Use a credited heroic sci-fi theme for intro/credits, with quiet cockpit ambience elsewhere.
 - Add movement-driven engine hum, damaging black-hole siphon, meteor approach/impact and distinct enemy shots/rays.

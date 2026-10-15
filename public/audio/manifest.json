@@ -206,9 +206,9 @@
       "download": "https://opengameart.org/sites/default/files/terradorian%27s%20theme%20song.mp3",
       "license": "CC-BY-3.0",
       "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
-      "edit": "First 20 seconds, 0.15 s fade-in, 2 s fade-out; re-encoded 128 kbps MP3",
+      "edit": "20-second excerpt starting at 0.46 s (leading silence removed), 5 ms fade-in, 2 s fade-out; re-encoded 128 kbps MP3",
       "sourceSha256": "dfdb6aa4ca5510bce0bd415a36f9abcca0387b920868c7ea71af29ed2b1d116a",
-      "sha256": "d34fb3e3c663f4c837b3f8047adbbfffb928ce1012187422c23fc2bb292a857b"
+      "sha256": "fffd4183dcb7ba67e97ff2c009a748eeb3dc2294c3e32d1f75f000846563064d"
     }
   ]
 }
