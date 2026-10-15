@@ -172,9 +172,15 @@ try {
       };
     });
     await page.goto(siteURL, { waitUntil: 'domcontentloaded' });
-    await page.locator('#audio-toggle').click();
+    await page.locator('#start-intro').waitFor({ state: 'visible' });
+    await page.waitForTimeout(10500);
+    assert.ok(await page.locator('#start-intro').isVisible(), 'Intro ran out before the first interaction');
+    assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'paused');
+    await page.locator('#start-intro').click();
     assert.equal(await page.locator('#audio-toggle').getAttribute('aria-pressed'), 'true', 'First sound click muted audio');
     await page.waitForFunction(() => window.__audioSmoke.music && !window.__audioSmoke.music.paused);
+    await page.locator('.intro-controls').waitFor({ state: 'hidden' });
+    assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'running');
     assert.ok(await page.evaluate(() => window.__audioSmoke.music.src.endsWith('/heroic-theme.mp3')), 'Opening did not use heroic theme');
     await page.locator('#skip-intro').click();
     await page.waitForFunction(() => window.__audioSmoke.music.src.endsWith('/out-there.mp3'));
@@ -207,6 +213,26 @@ try {
     await page.locator('#audio-toggle').click();
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('space-defenders-audio')).muted), false,
       'Enabling previously muted sound was not saved');
+  });
+
+  await withPage('intro-audio-fallback', async (page) => {
+    await page.addInitScript(() => {
+      HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException('Smoke test autoplay denial', 'NotAllowedError'));
+      localStorage.setItem('space-defenders-audio', JSON.stringify({ muted: true, music: 0, effects: 0.6 }));
+    });
+    await page.goto(siteURL, { waitUntil: 'domcontentloaded' });
+    await page.locator('#start-intro').click();
+    await page.waitForFunction(() => document.querySelector('#intro-audio-status')?.textContent.includes('Music could not start'));
+    assert.equal(await page.locator('#start-intro').isDisabled(), false);
+    assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'paused');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('space-defenders-audio')).music), 0.22);
+    await page.locator('#silent-intro').click();
+    assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'running');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('space-defenders-audio')).muted), true);
+    await page.locator('#skip-intro').click();
+    await page.locator('#gesture-choice').waitFor({ state: 'visible' });
+    await page.evaluate(() => document.dispatchEvent(new Event('intro-music-playing')));
+    assert.equal(await page.locator('#intro').isVisible(), false, 'Late audio restarted a skipped crawl');
   });
   console.log(JSON.stringify({ siteURL, results }, null, 2));
 } finally {

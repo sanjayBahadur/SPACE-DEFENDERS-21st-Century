@@ -2,6 +2,8 @@
 
 ## Unreleased — audio branch
 
+- Start the first opening crawl and its ten-second timer only after the theme begins playing, with explicit sound/silent choices and playback failure recovery.
+
 - Trim the intro/credits theme's 0.46-second opening silence for an immediate musical start.
 
 - Add gesture-accessible sound controls, saved music/effect volumes, scene mixes and bounded action feedback.

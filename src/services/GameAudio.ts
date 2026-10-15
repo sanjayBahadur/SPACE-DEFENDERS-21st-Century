@@ -44,12 +44,13 @@ export class GameAudio {
         this.toggle.id = 'audio-toggle';
         this.toggle.className = 'audio-toggle';
         this.toggle.addEventListener('click', () => {
-            if (!this.unlocked) { this.unlock(); this.configure({ muted: false }); }
+            if (!this.unlocked && this.mode === 'intro') this.startIntroMusic();
+            else if (!this.unlocked) { this.unlock(); this.configure({ muted: false }); }
             else this.configure({ muted: !this.settings.muted });
             this.refresh();
         });
         document.body.appendChild(this.toggle);
-        const unlock = (event: Event) => { if (event.isTrusted && !(event.target as Element)?.closest?.('#audio-toggle')) this.unlock(); };
+        const unlock = (event: Event) => { if (this.mode !== 'intro' && event.isTrusted && !(event.target as Element)?.closest?.('#audio-toggle')) this.unlock(); };
         document.addEventListener('pointerdown', unlock, true);
         document.addEventListener('keydown', unlock, true);
         document.addEventListener('click', event => {
@@ -88,6 +89,12 @@ export class GameAudio {
             void this.context.resume().catch(() => {});
             this.musicTrack = musicForMode(this.mode);
             this.music = new Audio(`${this.base}${this.musicTrack}`);
+            this.music.addEventListener('playing', () => {
+                if (!this.hidden && !this.settings.muted && this.musicTrack === 'heroic-theme.mp3' && this.mode === 'intro') {
+                    document.dispatchEvent(new Event('intro-music-playing'));
+                }
+            });
+            this.music.addEventListener('error', () => this.reportIntroError());
             this.music.loop = true;
             this.music.preload = 'none';
             for (const cue of EFFECTS) {
@@ -98,8 +105,17 @@ export class GameAudio {
                     this.buffers.set(cue, buffer);
                 }).catch(() => { /* A missing sound must never stop a mission. */ });
             }
-        } catch { /* Play silently when audio is unsupported. */ }
+        } catch { this.reportIntroError(); }
         this.refresh();
+    }
+
+    startIntroMusic(): void {
+        this.configure({ muted: false, music: this.settings.music > 0 ? this.settings.music : defaults.music });
+        this.unlock();
+    }
+
+    private reportIntroError(): void {
+        if (this.mode === 'intro' && typeof document !== 'undefined') document.dispatchEvent(new Event('intro-music-error'));
     }
 
     configure(change: Partial<AudioSettings>): void {
@@ -191,7 +207,7 @@ export class GameAudio {
         }
         this.music.volume = this.settings.music * (this.mode === 'pause' ? 0.18 : this.mode === 'gameplay' ? 0.6 : 1);
         if (this.hidden || this.settings.muted || this.settings.music === 0 || this.mode === 'defeat') this.music.pause();
-        else if (this.music.paused) void this.music.play().catch(() => {});
+        else if (this.music.paused) void this.music.play().catch(() => this.reportIntroError());
     }
 }
 export const gameAudio = new GameAudio();
