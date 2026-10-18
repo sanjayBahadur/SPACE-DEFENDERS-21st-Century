@@ -50,17 +50,19 @@ export class MainMenu extends Phaser.Scene {
       `
             <section id="intro" aria-label="Opening crawl">
                 <div class="intro-controls">
+                    <p class="intro-kicker">21ST CENTURY · THE LAST LINE</p>
+                    <img class="intro-logo" src="${import.meta.env.BASE_URL}assets/titlescreen/SpaceDefenders.webp" alt="Space Defenders">
+                    <p class="intro-invitation">A galaxy on the brink.<br>One defender between the fleet and home.</p>
+                    <button id="start-intro">ENTER THE GALAXY FAR, FAR AWAY</button>
                     <p id="intro-audio-status" role="status">Your mission awaits.</p>
-                    <button id="start-intro">PLAY INTRO WITH SOUND</button>
-                    <button id="silent-intro">PLAY WITHOUT SOUND</button>
                 </div>
-                <div id="crawl-container"><div class="crawl-content intro-crawl">
+                <div id="crawl-container" hidden><div class="crawl-content intro-crawl">
                     <h1 class="crawl-title">SPACE DEFENDERS</h1>
                     <p class="crawl-subtitle">21st Century</p>
                     <div class="crawl-body">
-                        <p>Fly with your left fist. Aim with your right index; flick your thumb to fire. Hold your right fist for the cannon. Release to cool.</p>
-                        <p>Or use WASD, mouse, and Space.</p>
-                        <p>Protect both stations. The galaxy is counting on you.</p>
+                        <p>At the edge of the galaxy, a lone defender stands between home and the approaching fleet.</p>
+                        <p>Through meteor storms and the pull of black holes, pilot and gunner must hold the line.</p>
+                        <p>The next move is yours.</p>
                     </div>
                 </div></div>
                 <button id="skip-intro" class="crawl-skip">SKIP / MENU</button>
@@ -131,10 +133,13 @@ export class MainMenu extends Phaser.Scene {
     const introStatus = intro.querySelector<HTMLElement>('#intro-audio-status')!;
     crawl.style.animationPlayState = 'paused';
     let introStarted = false;
+    let introRequested = false;
     let introTimer: number | undefined;
+    let musicWaitTimer: number | undefined;
     const finishIntro = () => {
       if (intro.hidden) return;
       if (introTimer !== undefined) window.clearTimeout(introTimer);
+      if (musicWaitTimer !== undefined) window.clearTimeout(musicWaitTimer);
       gameAudio.setMode("menu");
       intro.hidden = true;
       content.hidden = false;
@@ -146,28 +151,30 @@ export class MainMenu extends Phaser.Scene {
         .focus();
     };
     const beginIntro = () => {
-      if (intro.hidden || introStarted) return;
+      if (intro.hidden || introStarted || !introRequested) return;
       introStarted = true;
+      if (musicWaitTimer !== undefined) window.clearTimeout(musicWaitTimer);
       introControls.hidden = true;
+      intro.querySelector<HTMLElement>('#crawl-container')!.hidden = false;
       crawl.style.animationPlayState = 'running';
       introTimer = window.setTimeout(finishIntro, 10000);
     };
     const musicError = () => {
-      if (intro.hidden || introStarted) return;
-      startIntro.disabled = false;
-      introStatus.textContent = 'Music could not start. Try again, play without sound, or skip.';
+      // Audio is optional: a failed or slow theme must never block entry.
+      beginIntro();
     };
     document.addEventListener('intro-music-playing', beginIntro);
     document.addEventListener('intro-music-error', musicError);
     startIntro.addEventListener('click', () => {
+      if (introRequested) return;
+      introRequested = true;
       startIntro.disabled = true;
       introStatus.textContent = 'Preparing the opening theme…';
+      musicWaitTimer = window.setTimeout(beginIntro, 2500);
       gameAudio.startIntroMusic();
+      if (gameAudio.settings.muted || gameAudio.settings.music === 0) beginIntro();
     });
-    intro.querySelector('#silent-intro')!.addEventListener('click', () => {
-      gameAudio.configure({ muted: true });
-      beginIntro();
-    });
+    if (!this.skipIntro) startIntro.focus();
     if (this.skipIntro) finishIntro();
     screen.querySelector("#skip-intro")!.addEventListener("click", finishIntro);
     const showPage = (name: string) => {
@@ -351,6 +358,7 @@ export class MainMenu extends Phaser.Scene {
       document.removeEventListener('intro-music-playing', beginIntro);
       document.removeEventListener('intro-music-error', musicError);
       if (introTimer !== undefined) window.clearTimeout(introTimer);
+      if (musicWaitTimer !== undefined) window.clearTimeout(musicWaitTimer);
       // Cancel abandoned permission/model setup, but keep a ready camera so
       // credits, pause, retry and home are all reachable with gestures.
       if (loading) tracker.stop();

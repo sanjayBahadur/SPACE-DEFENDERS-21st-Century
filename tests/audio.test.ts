@@ -104,13 +104,13 @@ test('opening and credits use the heroic theme while the cockpit retains quiet a
     for (const mode of ['menu', 'briefing', 'gameplay', 'pause'] as const) assert.equal(musicForMode(mode), 'out-there.mp3');
 });
 
-test('explicit intro sound choice restores audible music from saved mute or zero volume', () => {
+test('intro entry preserves saved mute and zero volume preferences', () => {
     const r = rig();
     r.audio.configure({ muted: true, music: 0 });
     r.audio.unlock = () => {};
     r.audio.startIntroMusic();
-    assert.equal(r.audio.settings.muted, false);
-    assert.equal(r.audio.settings.music, 0.22);
+    assert.equal(r.audio.settings.muted, true);
+    assert.equal(r.audio.settings.music, 0);
     r.audio.configure({ music: 0.4 });
     r.audio.startIntroMusic();
     assert.equal(r.audio.settings.music, 0.4, 'Keep a chosen audible volume');

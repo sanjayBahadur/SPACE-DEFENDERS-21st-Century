@@ -176,6 +176,9 @@ try {
     await page.waitForTimeout(10500);
     assert.ok(await page.locator('#start-intro').isVisible(), 'Intro ran out before the first interaction');
     assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'paused');
+    await page.locator('#audio-toggle').click();
+    await page.locator('#audio-toggle').click();
+    assert.equal(await page.evaluate(() => window.__audioSmoke.music), null, 'Sound preference started music before entry');
     await page.locator('#start-intro').click();
     assert.equal(await page.locator('#audio-toggle').getAttribute('aria-pressed'), 'true', 'First sound click muted audio');
     await page.waitForFunction(() => window.__audioSmoke.music && !window.__audioSmoke.music.paused);
@@ -218,21 +221,40 @@ try {
   await withPage('intro-audio-fallback', async (page) => {
     await page.addInitScript(() => {
       HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException('Smoke test autoplay denial', 'NotAllowedError'));
-      localStorage.setItem('space-defenders-audio', JSON.stringify({ muted: true, music: 0, effects: 0.6 }));
     });
     await page.goto(siteURL, { waitUntil: 'domcontentloaded' });
     await page.locator('#start-intro').click();
-    await page.waitForFunction(() => document.querySelector('#intro-audio-status')?.textContent.includes('Music could not start'));
-    assert.equal(await page.locator('#start-intro').isDisabled(), false);
-    assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'paused');
-    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('space-defenders-audio')).music), 0.22);
-    await page.locator('#silent-intro').click();
+    await page.locator('.intro-controls').waitFor({ state: 'hidden' });
     assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'running');
-    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('space-defenders-audio')).muted), true);
     await page.locator('#skip-intro').click();
     await page.locator('#gesture-choice').waitFor({ state: 'visible' });
     await page.evaluate(() => document.dispatchEvent(new Event('intro-music-playing')));
     assert.equal(await page.locator('#intro').isVisible(), false, 'Late audio restarted a skipped crawl');
+  });
+
+  await withPage('intro-saved-silence', async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('space-defenders-audio', JSON.stringify({ muted: true, music: 0, effects: 0.6 }));
+    });
+    await page.goto(siteURL, { waitUntil: 'domcontentloaded' });
+    assert.equal(await page.locator('#silent-intro').count(), 0, 'Old sound-choice gate remains');
+    await page.locator('#start-intro').click();
+    await page.locator('.intro-controls').waitFor({ state: 'hidden' });
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('space-defenders-audio')));
+    assert.equal(saved.muted, true); assert.equal(saved.music, 0);
+    await page.locator('#gesture-choice').waitFor({ state: 'visible', timeout: 12000 });
+  });
+
+  await withPage('intro-stalled-theme', async (page) => {
+    await page.addInitScript(() => {
+      HTMLMediaElement.prototype.play = () => new Promise(() => {});
+    });
+    await page.goto(siteURL, { waitUntil: 'domcontentloaded' });
+    await page.locator('#start-intro').click();
+    await page.locator('.intro-controls').waitFor({ state: 'hidden', timeout: 5000 });
+    assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'running');
+    await page.keyboard.press('Escape');
+    await page.locator('#gesture-choice').waitFor({ state: 'visible' });
   });
   console.log(JSON.stringify({ siteURL, results }, null, 2));
 } finally {

@@ -44,9 +44,8 @@ export class GameAudio {
         this.toggle.id = 'audio-toggle';
         this.toggle.className = 'audio-toggle';
         this.toggle.addEventListener('click', () => {
-            if (!this.unlocked && this.mode === 'intro') this.startIntroMusic();
-            else if (!this.unlocked) { this.unlock(); this.configure({ muted: false }); }
-            else this.configure({ muted: !this.settings.muted });
+            this.configure({ muted: !this.settings.muted });
+            if (!this.settings.muted && this.mode !== 'intro') this.unlock();
             this.refresh();
         });
         document.body.appendChild(this.toggle);
@@ -110,8 +109,11 @@ export class GameAudio {
     }
 
     startIntroMusic(): void {
-        this.configure({ muted: false, music: this.settings.music > 0 ? this.settings.music : defaults.music });
         this.unlock();
+        // Reuse a theme that is already playing in an unlocked audio session.
+        if (this.music && !this.music.paused && this.music.readyState >= 2 && !this.hidden && !this.settings.muted && this.settings.music > 0) {
+            document.dispatchEvent(new Event('intro-music-playing'));
+        }
     }
 
     private reportIntroError(): void {
@@ -195,8 +197,8 @@ export class GameAudio {
 
     private refresh(): void {
         if (this.toggle) {
-            this.toggle.textContent = !this.unlocked ? 'ENABLE SOUND' : this.settings.muted ? 'SOUND: OFF' : 'SOUND: ON';
-            this.toggle.setAttribute('aria-pressed', String(this.unlocked && !this.settings.muted));
+            this.toggle.textContent = this.settings.muted ? 'SOUND: OFF' : 'SOUND: ON';
+            this.toggle.setAttribute('aria-pressed', String(!this.settings.muted));
         }
         if (!this.music) return;
         const track = musicForMode(this.mode);
