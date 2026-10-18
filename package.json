@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "tsx --test tests/*.test.ts",
     "check": "tsc --noEmit",
-    "test:browser": "node scripts/smoke-production.mjs"
+    "test:browser": "node scripts/smoke-production.mjs",
+    "record": "node scripts/record-game.mjs",
+    "test:recorder": "node scripts/smoke-recorder.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.1.0",
