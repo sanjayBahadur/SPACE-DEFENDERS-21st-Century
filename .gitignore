@@ -26,6 +26,7 @@ dist-ssr
 # Local browser verification artifacts
 .playwright-cli/
 output/
+__pycache__/
 
 # Packaged production release
 space-defenders-site.zip
