@@ -1,6 +1,6 @@
 # Gameplay capture and 30-second teaser
 
-The current edit is the [45-second campus teaser](trailer-edit.md): authentic tutorial practice, the green USF room, gameplay and two friends enjoying the session. The thirty-second narration below remains an earlier alternative; the campus cut has no added narration.
+The current edit is the [caption-led, 45-second campus teaser](trailer-edit.md): upright tutorial footage, the green USF room, gameplay and two friends enjoying the session, with color correction and cuts synchronized to continuous music. The thirty-second narration below remains an earlier alternative; the campus cut has no added narration.
 
 ## One-command capture
 
