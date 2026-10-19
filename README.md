@@ -32,7 +32,7 @@ Open the game on a desktop or laptop in landscape. Choose gesture controls and a
 | Navigate menus | Point with your right index and flick your thumb to select | Click buttons |
 | Pause | Losing a tracked hand pauses the mission | Esc or P |
 
-One player controls both stations. Losing either station ends the run. If tracking drops, bring both hands back to resume, or switch to keyboard and mouse. You can skip the opening crawl and change music, effects and hand-overlay settings from the menus.
+One player controls both stations. Losing either station ends the run. If tracking drops, bring both hands back, then select Resume, or switch to keyboard and mouse. You can skip the opening crawl and change music, effects and hand-overlay settings from the menus.
 
 Camera frames are processed in your browser and are not uploaded. Gesture controls need HTTPS or localhost. Touch controls are not implemented; camera performance depends on your device and lighting.
 
