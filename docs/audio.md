@@ -1,6 +1,6 @@
 # Audio design and sources
 
-Audio branch: `feat/game-audio`. This adds presentation and feedback; combat rules, gestures and mission timing are unchanged. The published 1.0.1 release remains the baseline until the audio branch is reviewed and released.
+The audio update adds presentation and feedback; combat rules, gestures and mission timing are unchanged. The current game includes these cues and controls.
 
 ## Categories and actions
 

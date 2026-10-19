@@ -1,6 +1,6 @@
 # Libraries, tools and feature ownership
 
-This guide describes the `0.9` implementation. The versions below are resolved in [package-lock.json](../package-lock.json), rather than the version ranges in [package.json](../package.json). Run `npm ci` to reproduce them and `npm ls --depth=0` to inspect the installed direct dependencies.
+This guide describes the current desktop implementation. The versions below are resolved in [package-lock.json](../package-lock.json), rather than the version ranges in [package.json](../package.json). Run `npm ci` to reproduce them and `npm ls --depth=0` to inspect the installed direct dependencies.
 
 ## Runtime libraries
 
