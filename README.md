@@ -2,7 +2,7 @@
 
 A dual-view space survival game built with Phaser, TypeScript and MediaPipe Hand Landmarker. Pilot your ship through hazards on the left while defending it from incoming threats on the right.
 
-**Desktop release: v1.0.1.** [Play online](https://sanjayBahadur.github.io/SPACE-DEFENDERS-21st-Century/) · [Release notes](CHANGELOG.md). Gameplay is frozen for this release. See [the review and playtest record](docs/0.9-review.md) for validation and hardware testing limits. [Libraries, tools and feature ownership](docs/technology.md) maps each feature to its implementation and documents runtime and development dependencies.
+**Desktop release: v1.0.1.** [Play online](https://spacedefenders.sanjaymalla.com/) · [Release notes](CHANGELOG.md). Gameplay is frozen for this release. See [the review and playtest record](docs/0.9-review.md) for validation and hardware testing limits. [Libraries, tools and feature ownership](docs/technology.md) maps each feature to its implementation and documents runtime and development dependencies.
 
 ## Play locally
 

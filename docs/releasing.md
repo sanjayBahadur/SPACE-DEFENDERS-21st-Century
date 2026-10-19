@@ -1,6 +1,6 @@
 # Release and deployment
 
-Production target: <https://sanjayBahadur.github.io/SPACE-DEFENDERS-21st-Century/>.
+Production target: <https://spacedefenders.sanjaymalla.com/> on the existing Cloudflare Pages project `space-defenders-21st-century`. GitHub Pages remains a secondary deployment.
 
 Gameplay remains frozen. v1.0.1 fixes menu fingertip positioning without changing Gunner aiming or combat.
 
@@ -10,9 +10,10 @@ Gameplay remains frozen. v1.0.1 fixes menu fingertip positioning without changin
 npm ci
 npm test
 npm run check
-npm run build -- --base=/SPACE-DEFENDERS-21st-Century/
+npm run build -- --base=/
+node scripts/check-static-hosting.mjs
 npx playwright install chromium
-npm run test:browser
+SMOKE_BASE_PATH=/ npm run test:browser
 ```
 
 The smoke script owns a preview server on port 4185 and cleans it up. It checks real production files and model/WASM loading in Chromium with a generated camera stream, alongside camera-denial fallback and keyboard/menu cycles. It writes screenshots/traces under ignored `output/production-smoke/`. Physical-hand accuracy is not inferred from the generated stream.
@@ -20,7 +21,7 @@ The smoke script owns a preview server on port 4185 and cleans it up. It checks 
 To repeat these checks against the public site:
 
 ```sh
-SMOKE_BASE_URL=https://sanjayBahadur.github.io/SPACE-DEFENDERS-21st-Century/ npm run test:browser
+SMOKE_BASE_URL=https://spacedefenders.sanjaymalla.com/ npm run test:browser
 ```
 
 ## GitHub automation
@@ -46,4 +47,20 @@ The existing Cloudflare integration uses the default root-path `npm run build`. 
 
 Keep successful deployment runs and tagged releases. If a live regression occurs and the prior run’s Pages artifact is still retained, identify its deployment job with `gh run view RUN_ID --json jobs`, then rerun only that job with `gh run rerun RUN_ID --job DEPLOY_JOB_ID`. This uses the prior verified artifact instead of rebuilding it. If that artifact has expired, prepare a reviewed revert PR to restore the prior release and let the normal checks/build/deployment run again. Never force-push or move an existing release tag.
 
-The workflow retains its production ZIP artifact for 30 days; release attachments retain accepted builds independently. For the first Pages launch, the older Cloudflare deployment is also available as a fallback public build.
+The workflow retains its production ZIP artifact for 30 days; release attachments retain accepted builds independently. For the custom domain, use Cloudflare Pages deployment history to roll back to the previously accepted production deployment.
+
+## Static hosting and cost policy
+
+The domain zone reports the Free Website plan. Cloudflare documents static Pages requests as free and unlimited; this game serves static files and runs graphics, audio and hand tracking on the visitor’s device. No Pages Functions, Workers, database, R2 bucket, or paid API is required or added. This does not audit unrelated account subscriptions or domain renewal charges.
+
+Run `node scripts/check-static-hosting.mjs` on the root build before upload. It rejects Worker/Functions output, environment files, non-root asset references, more than 20,000 files, and any asset over 25 MiB. Keep trailer recordings outside `public/` and `dist/`; upload those to YouTube. Hashed application assets receive long browser caching; HTML revalidates so new releases appear promptly. Unhashed model/audio files cache for one day.
+
+The connected Git build uses production branch `main`, command `npm run build`, and output `dist`. Never upload the GitHub Pages subpath build to the custom domain. An authorized direct upload can publish the checked local `dist/` to the existing project without pushing Git history:
+
+```sh
+npx wrangler pages deploy dist --project-name=space-defenders-21st-century --branch=main --commit-dirty=true
+```
+
+Record the source commit, any local source modifications, deployment ID and artifact hashes. Direct upload does not merge source into `main`; a future Git build can replace it, so reconcile source before the next normal release. Retain the previous Cloudflare production deployment for rollback.
+
+Sources: [Pages pricing](https://developers.cloudflare.com/pages/functions/pricing/), [Pages limits](https://developers.cloudflare.com/pages/platform/limits/).
