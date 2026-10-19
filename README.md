@@ -12,7 +12,9 @@ I built Space Defenders to see whether hand gestures could carry an arcade game 
 
 ## Watch it in action
 
-[![Watch the Space Defenders gameplay trailer on YouTube](https://img.youtube.com/vi/lYjdcCrbLaQ/hqdefault.jpg)](https://youtu.be/lYjdcCrbLaQ)
+[![Play the 45-second Space Defenders trailer on YouTube](docs/media/trailer-preview.png)](https://youtu.be/lYjdcCrbLaQ)
+
+**[▶ Play trailer on YouTube · 0:45](https://youtu.be/lYjdcCrbLaQ)**
 
 *The trailer features Sanjay Malla and Masyn Akira Knight trying the game at USF.*
 
