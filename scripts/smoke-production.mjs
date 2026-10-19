@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
@@ -8,6 +8,8 @@ const basePath = process.env.SMOKE_BASE_PATH || '/SPACE-DEFENDERS-21st-Century/'
 const externalURL = process.env.SMOKE_BASE_URL;
 const siteURL = externalURL || `http://127.0.0.1:4185${basePath}`;
 const artifactDir = 'output/production-smoke';
+const audioManifest = JSON.parse(await readFile(new URL('../public/audio/manifest.json', import.meta.url)));
+const effectCount = audioManifest.files.filter(file => file.file.endsWith('.wav')).length;
 let server;
 let browser;
 const results = [];
@@ -98,6 +100,10 @@ try {
     }
     await page.locator('#credits').click();
     await page.locator('.credits-crawl').waitFor({ state: 'visible' });
+    const credits = await page.locator('.credits-crawl').textContent();
+    for (const name of ['Masyn Akira Knight', 'Jackson Poynor', 'Max', 'Telaron', 'Space Marines']) assert.ok(credits.includes(name), `Missing credit: ${name}`);
+    const attribution = await page.request.get(new URL('legal/audio-notices.txt', siteURL).href);
+    assert.equal(attribution.status(), 200);
     await page.locator('.crawl-skip').click();
     await page.locator('#start-mission').waitFor({ state: 'visible' });
     assert.equal(models.length, 0, 'Keyboard play unexpectedly downloaded camera models');
@@ -134,6 +140,121 @@ try {
     assert.equal(await page.locator('video').count(), 0, 'Keyboard switch retained the camera video');
     assert.equal(await page.locator('#hand-debug-canvas').count(), 0, 'Keyboard switch retained the skeleton overlay');
     await page.locator('#controls-menu [data-back]').click();
+  });
+
+  await withPage('audio-controls-and-cannon', async (page) => {
+    await page.addInitScript(() => {
+      window.__audioSmoke = { decoded: 0, sources: [], music: null };
+      const NativeContext = window.AudioContext;
+      window.AudioContext = class extends NativeContext {
+        async decodeAudioData(data) {
+          const buffer = await super.decodeAudioData(data);
+          if (buffer.length > 0) window.__audioSmoke.decoded++;
+          return buffer;
+        }
+        createBufferSource() {
+          const node = super.createBufferSource();
+          const record = { loop: false, active: false };
+          window.__audioSmoke.sources.push(record);
+          const start = node.start.bind(node);
+          const stop = node.stop.bind(node);
+          node.start = (...args) => { record.loop = node.loop; record.active = true; start(...args); };
+          node.stop = (...args) => { record.active = false; stop(...args); };
+          node.addEventListener('ended', () => { record.active = false; });
+          return node;
+        }
+      };
+      const NativeAudio = window.Audio;
+      window.Audio = function (...args) {
+        const audio = new NativeAudio(...args);
+        window.__audioSmoke.music = audio;
+        return audio;
+      };
+    });
+    await page.goto(siteURL, { waitUntil: 'domcontentloaded' });
+    await page.locator('#start-intro').waitFor({ state: 'visible' });
+    await page.waitForTimeout(10500);
+    assert.ok(await page.locator('#start-intro').isVisible(), 'Intro ran out before the first interaction');
+    assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'paused');
+    await page.locator('#audio-toggle').click();
+    await page.locator('#audio-toggle').click();
+    assert.equal(await page.evaluate(() => window.__audioSmoke.music), null, 'Sound preference started music before entry');
+    await page.locator('#start-intro').click();
+    assert.equal(await page.locator('#audio-toggle').getAttribute('aria-pressed'), 'true', 'First sound click muted audio');
+    await page.waitForFunction(() => window.__audioSmoke.music && !window.__audioSmoke.music.paused);
+    await page.locator('.intro-controls').waitFor({ state: 'hidden' });
+    assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'running');
+    assert.ok(await page.evaluate(() => window.__audioSmoke.music.src.endsWith('/heroic-theme.mp3')), 'Opening did not use heroic theme');
+    await page.locator('#skip-intro').click();
+    await page.waitForFunction(() => window.__audioSmoke.music.src.endsWith('/out-there.mp3'));
+    await page.waitForFunction(count => window.__audioSmoke.decoded === count, effectCount, { timeout: 30000 });
+    await page.locator('#keyboard-choice').click();
+    await page.locator('#settings').click();
+    await page.locator('#audio-toggle').click();
+    assert.match(await page.locator('#sound-toggle').textContent(), /OFF/, 'Settings mute label is stale');
+    assert.equal(await page.evaluate(() => window.__audioSmoke.music.paused), true);
+    await page.locator('#sound-toggle').click();
+    await page.locator('#music-volume').click();
+    assert.match(await page.locator('#music-volume').textContent(), /40%/);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('space-defenders-audio')).music), 0.4);
+    await page.locator('#settings-menu [data-back]').click();
+    await page.locator('#start-mission').click();
+    await page.locator('.mission-briefing').waitFor({ state: 'visible' });
+    await page.locator('.mission-briefing').waitFor({ state: 'detached', timeout: 10000 });
+    await page.keyboard.down('Space');
+    await page.waitForFunction(() => window.__audioSmoke.sources.some(source => source.loop && source.active));
+    await page.keyboard.press('Escape');
+    await page.locator('.pause-gesture-guides').waitFor({ state: 'visible' });
+    assert.equal(await page.evaluate(() => window.__audioSmoke.sources.some(source => source.loop && source.active)), false,
+      'Paused mission retained the cannon loop');
+    await page.keyboard.up('Space');
+    await page.locator('#audio-toggle').click();
+    assert.equal(await page.evaluate(() => window.__audioSmoke.sources.some(source => source.active)), false,
+      'Mute retained active effects');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('#audio-toggle').waitFor({ state: 'visible' });
+    await page.locator('#audio-toggle').click();
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('space-defenders-audio')).muted), false,
+      'Enabling previously muted sound was not saved');
+  });
+
+  await withPage('intro-audio-fallback', async (page) => {
+    await page.addInitScript(() => {
+      HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException('Smoke test autoplay denial', 'NotAllowedError'));
+    });
+    await page.goto(siteURL, { waitUntil: 'domcontentloaded' });
+    await page.locator('#start-intro').click();
+    await page.locator('.intro-controls').waitFor({ state: 'hidden' });
+    assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'running');
+    await page.locator('#skip-intro').click();
+    await page.locator('#gesture-choice').waitFor({ state: 'visible' });
+    await page.evaluate(() => document.dispatchEvent(new Event('intro-music-playing')));
+    assert.equal(await page.locator('#intro').isVisible(), false, 'Late audio restarted a skipped crawl');
+  });
+
+  await withPage('intro-saved-silence', async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('space-defenders-audio', JSON.stringify({ muted: true, music: 0, effects: 0.6 }));
+    });
+    await page.goto(siteURL, { waitUntil: 'domcontentloaded' });
+    assert.equal(await page.locator('#silent-intro').count(), 0, 'Old sound-choice gate remains');
+    await page.locator('#start-intro').click();
+    await page.locator('.intro-controls').waitFor({ state: 'hidden' });
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('space-defenders-audio')));
+    assert.equal(saved.muted, true); assert.equal(saved.music, 0);
+    await page.locator('#gesture-choice').waitFor({ state: 'visible', timeout: 12000 });
+  });
+
+  await withPage('intro-stalled-theme', async (page) => {
+    await page.addInitScript(() => {
+      HTMLMediaElement.prototype.play = () => new Promise(() => {});
+    });
+    await page.goto(siteURL, { waitUntil: 'domcontentloaded' });
+    await page.locator('#start-intro').click();
+    await page.locator('.intro-controls').waitFor({ state: 'hidden', timeout: 5000 });
+    assert.equal(await page.locator('.intro-crawl').evaluate(node => getComputedStyle(node).animationPlayState), 'running');
+    await page.keyboard.press('Escape');
+    await page.locator('#gesture-choice').waitFor({ state: 'visible' });
   });
   console.log(JSON.stringify({ siteURL, results }, null, 2));
 } finally {

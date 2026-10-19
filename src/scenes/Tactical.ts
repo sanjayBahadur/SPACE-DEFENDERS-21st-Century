@@ -1,3 +1,4 @@
+import { gameAudio } from '../services/GameAudio';
 import Phaser from 'phaser';
 import { HandTracker } from '../services/HandTracker';
 import { applyHullHit } from '../utils/hull';
@@ -76,6 +77,7 @@ export class Tactical extends Phaser.Scene {
         this.wasPointerDown = this.input.activePointer.leftButtonDown();
         this.lastHandTime = this.time.now;
         this.damageProtectedUntil = 0;
+        this.events.once('shutdown', () => gameAudio.cannon(false));
         this.stars = [];
 
         const width = this.scale.width;
@@ -377,10 +379,15 @@ export class Tactical extends Phaser.Scene {
         const pointer = this.input.activePointer;
         const rightMouseCannon = pointer.x > vw && pointer.rightButtonDown();
         const requestedCannon = gunner?.gesture === 'FIST' || (keyboardControls && (this.cannonKey.isDown || rightMouseCannon));
+        const previousHeat = this.palmTemp;
+        const wasOverheated = this.isOverheated;
         const cannon = advanceCannon({ heat: this.palmTemp, overheated: this.isOverheated }, requestedCannon, delta);
         this.palmTemp = cannon.heat;
         this.isOverheated = cannon.overheated;
         const firingCannon = requestedCannon && !this.isOverheated;
+        gameAudio.cannon(firingCannon);
+        if ((previousHeat < 50 && this.palmTemp >= 50) || (!wasOverheated && this.isOverheated)) gameAudio.play('warning');
+        if (previousHeat > 0 && this.palmTemp === 0) gameAudio.play('ready');
 
         // Resizing must update the rectangle geometry and display origin together.
         // Changing height alone leaves the bottom anchor at its previous size.
@@ -633,6 +640,7 @@ export class Tactical extends Phaser.Scene {
     private fireEnemyV3Ray(enemy: any) {
         if (this.isGameOver || !enemy.active) return;
 
+        gameAudio.play('enemy-charge', 400);
         // Visual warning
         const warning = this.add.circle(enemy.x, enemy.y, 10, 0xff0000, 0.5);
         this.tweens.add({
@@ -643,6 +651,7 @@ export class Tactical extends Phaser.Scene {
             onComplete: () => {
                 warning.destroy();
                 if (!enemy.active) return;
+                if (!this.isGameOver) gameAudio.play('enemy-laser', 150);
 
                 this.cameras.main.flash(200, 255, 0, 0);
                 this.cameras.main.shake(300, 0.015);
@@ -663,6 +672,7 @@ export class Tactical extends Phaser.Scene {
     private spawnMissile(startX: number, startY: number, type: 'V1' | 'V2' = 'V1') {
         if (this.isGameOver) return;
 
+        gameAudio.play('enemy-shot', 120);
         // Modern missile design (energy orb with trail)
         const missile = this.add.container(startX, startY);
 
@@ -696,6 +706,7 @@ export class Tactical extends Phaser.Scene {
     private handleFire() {
         if (this.isGameOver || !this.scene.isActive()) return;
 
+        gameAudio.play('laser');
         // Visual: Play ShotV1 animation regardless of hit
         // Spawn at crosshair
         const shot = this.add.sprite(this.crosshair.x, this.crosshair.y, 'shotV1_1');
@@ -750,6 +761,7 @@ export class Tactical extends Phaser.Scene {
     }
 
     private createExplosion(x: number, y: number, animKey: string, scale: number = 0.5) {
+        gameAudio.play('explosion');
         const explosion = this.add.sprite(x, y, `${animKey}_1`);
         explosion.setDepth(15);
         explosion.setScale(scale);
@@ -767,6 +779,8 @@ export class Tactical extends Phaser.Scene {
         if (this.isGameOver) return false;
         const hit = applyHullHit({ health: this.shieldLevel, protectedUntil: this.damageProtectedUntil }, 25, this.time.now);
         if (hit.health === this.shieldLevel) return false;
+        gameAudio.play('impact');
+        if (this.shieldLevel > 20 && hit.health <= 20) gameAudio.play('warning');
         this.shieldLevel = hit.health;
         this.damageProtectedUntil = hit.protectedUntil;
 

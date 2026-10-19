@@ -1,0 +1,38 @@
+Space Defenders audio assets
+
+Kenney — Sci-fi Sounds (1.0), Interface Sounds (1.0)
+https://kenney.nl/assets/sci-fi-sounds
+https://kenney.nl/assets/interface-sounds
+License: CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+Supplied license files: kenney-scifi-audio.txt, kenney-interface-audio.txt
+
+"Out There" — yd, published 2011-12-30
+https://opengameart.org/content/space-music-out-there
+Original: https://opengameart.org/sites/default/files/OutThere_0.ogg
+License: CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Selected effects converted to mono 22050 Hz PCM WAV with a 5 ms fade-in.
+Warning shortened to 0.65 s with a 0.1 s fade-out.
+Music converted to 96 kbps MP3. Original and distributed checksums and
+filenames: ../audio/manifest.json. Full cue mapping: docs/audio.md in source.
+Credits for Kenney and yd are voluntary; CC0 does not require attribution.
+The Telaron theme below requires the stated CC BY 3.0 attribution.
+
+"Space Marines" (original filename: terradorian's theme song.mp3)
+by Telaron, published 2010-09-10 for The War of Terrador.
+Source: https://opengameart.org/content/space-marines
+License: Creative Commons Attribution 3.0 Unported (CC BY 3.0)
+https://creativecommons.org/licenses/by/3.0/
+Changes: 20-second excerpt starting at 0.46 s (leading silence removed),
+5 ms fade-in, 2 s fade-out;
+re-encoded as 128 kbps MP3. Used for opening and credits.
+This attribution and license apply to heroic-theme.mp3, not the other assets.
+
+Additional Kenney Sci-fi Sounds selections (CC0):
+spaceEngineLow_000 (engine), forceField_004 (siphon), thrusterFire_000
+(meteor approach), explosionCrunch_004 (meteor impact), laserLarge_003
+(enemy ray), laserRetro_001 (enemy projectile), forceField_000 (charge),
+impactMetal_003 (hull damage). Short cues are excerpted and faded;
+see ../audio/manifest.json for exact edits and original/distributed hashes.

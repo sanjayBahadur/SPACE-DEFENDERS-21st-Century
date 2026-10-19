@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 — 18 October 2026
+
+- Add scene music and distinct firing, damage, engine, meteor, black-hole and enemy weapon sounds, with saved volume controls and bounded overlapping effects.
+- Start the ten-second opening crawl from a single entry button, with its theme after user interaction. Trim the theme’s opening silence and recover gracefully when playback is denied or stalls.
+- Simplify the entry screen and retain the original space-opera presentation, gesture controls and combat balance.
+- Expand music, promotional-video and beta-tester credits; include source and license notices in the build.
+- Restore the existing custom domain as the primary play link, add refreshable asset caching and validate uploads against static Pages Free limits.
+- Add a root-domain CI build with browser verification and a downloadable ZIP, alongside the GitHub Pages build.
+- Add the published YouTube trailer, a recorded gameplay preview and an implementation-focused README.
+
 ## 1.0.1 — 14 October 2026
 
 - Fix exaggerated horizontal menu cursor motion by using the mirrored index fingertip before gameplay zone expansion. Align it with the skeleton frame across home, pause and recovery menus.

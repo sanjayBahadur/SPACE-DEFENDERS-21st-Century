@@ -1,6 +1,6 @@
 # Libraries, tools and feature ownership
 
-This guide describes the `0.9` implementation. The versions below are resolved in [package-lock.json](../package-lock.json), rather than the version ranges in [package.json](../package.json). Run `npm ci` to reproduce them and `npm ls --depth=0` to inspect the installed direct dependencies.
+This guide describes the current desktop implementation. The versions below are resolved in [package-lock.json](../package-lock.json), rather than the version ranges in [package.json](../package.json). Run `npm ci` to reproduce them and `npm ls --depth=0` to inspect the installed direct dependencies.
 
 ## Runtime libraries
 
@@ -56,3 +56,7 @@ Git manages the branch and focused commits; GitHub Issues records the reported b
 ## Input validation limits
 
 The synthetic 30 FPS hand stream in [input-response.test.ts](../tests/input-response.test.ts) checks the complete filter plus scene-following response at 30/60/120/144 Hz. At a 60 Hz display, an aim step reaches 90% in approximately 167 ms with the current profile versus 483 ms with the previous profile. These figures model camera sample delivery and smoothing; they do not measure exposure, MediaPipe inference or hardware latency. Tests also require more than 50% attenuation of stationary alternating jitter. [hand-tracker.test.ts](../tests/hand-tracker.test.ts) checks that 30 FPS camera frames are retained across 59.94/60/60.1/120/144 Hz display clocks, while duplicate frames and hidden tabs do no inference.
+
+## Audio branch
+
+The audio layer uses browser **Web Audio** buffer sources for short effects and **HTMLAudioElement** streaming for music. `GameAudio.ts` owns unlock, mixing, bounded voices, loop cleanup and optional localStorage preferences; no new runtime library is required. **FFmpeg** converts the downloaded CC0 assets for distribution and is an asset preparation tool, not a runtime/build dependency. [Audio design and source records](audio.md) lists every cue, original filename, license and conversion. Browser smoke checks decode all twenty effects and exercise music, mute, preference persistence and cannon cleanup.

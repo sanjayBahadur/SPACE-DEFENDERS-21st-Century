@@ -1,3 +1,4 @@
+import { gameAudio } from '../services/GameAudio';
 import Phaser from 'phaser';
 import type { HandTracker } from '../services/HandTracker';
 import { GestureMenuNavigator, canvasBounds } from '../ui/GestureMenu';
@@ -8,6 +9,7 @@ export class PauseScene extends Phaser.Scene {
     private reason?: string;
     private missingRole?: 'pilot' | 'gunner';
     private leaving = false;
+    private connectionReady = false;
     private gestureMenu?: GestureMenuNavigator;
     private menuTargets: Array<() => MenuTarget | null> = [];
     private connectionText!: Phaser.GameObjects.Text;
@@ -18,9 +20,12 @@ export class PauseScene extends Phaser.Scene {
     }
 
     create(data?: { reason?: string; missingRole?: 'pilot' | 'gunner' }) {
+        gameAudio.setMode('pause');
+        gameAudio.play(data?.reason === 'HAND_LOST' ? 'warning' : 'pause');
         this.reason = data?.reason;
         this.missingRole = data?.missingRole;
         this.leaving = false;
+        this.connectionReady = false;
         this.menuTargets = [];
         this.gestureMenu = undefined;
         this.registry.set('pausePending', false);
@@ -126,6 +131,8 @@ export class PauseScene extends Phaser.Scene {
         if (this.reason !== 'HAND_LOST' || this.registry.get('keyboardMode') === true) return;
         const tracker = this.registry.get('handTracker') as HandTracker | undefined;
         const ready = this.canGestureResume();
+        if (ready && !this.connectionReady) gameAudio.play('ready');
+        this.connectionReady = ready;
         const hands = tracker?.getHands();
         const missing = !hands?.pilot ? 'pilot' : !hands.gunner ? 'gunner' : this.missingRole;
         const role = (ready ? this.missingRole : missing)?.toUpperCase() ?? 'HANDS';
@@ -149,6 +156,8 @@ export class PauseScene extends Phaser.Scene {
         this.registry.set('manualKeyboardOverride', isManual && !this.canGestureResume());
         tracker?.getHands(true); // The menu confirmation must never also fire a shot.
 
+        gameAudio.setMode('gameplay');
+        gameAudio.play('launch');
         this.scene.resume('Tactical');
         this.scene.resume('Strategic');
         this.scene.stop();
@@ -169,6 +178,7 @@ export class PauseScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         hitArea.on('pointerover', () => {
+            gameAudio.play('hover');
             textObj.setColor('#FFFFFF');
             textObj.setScale(1.1);
         });
@@ -176,13 +186,14 @@ export class PauseScene extends Phaser.Scene {
             textObj.setColor('#FFE81F');
             textObj.setScale(1.0);
         });
-        hitArea.on('pointerdown', callback);
+        const confirm = (action: () => void) => { gameAudio.play('confirm'); action(); };
+        hitArea.on('pointerdown', () => confirm(callback));
 
         container.add([hitArea, textObj]);
         this.menuTargets.push(() => enabled() ? ({
             id: text,
             bounds: canvasBounds(this, hitArea.getBounds()),
-            activate: gestureCallback,
+            activate: () => confirm(gestureCallback),
         }) : null);
         return container;
     }

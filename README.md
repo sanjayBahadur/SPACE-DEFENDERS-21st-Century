@@ -1,79 +1,96 @@
+<p align="center">
+  <img src="public/assets/titlescreen/SpaceDefenders.webp" width="440" alt="Space Defenders">
+</p>
+
 # Space Defenders — 21st Century
 
-A dual-view space survival game built with Phaser, TypeScript and MediaPipe Hand Landmarker. Pilot your ship through hazards on the left while defending it from incoming threats on the right.
+A space shooter you play with both hands and a webcam. Fly through meteors and black holes on the left; aim and defend your ship on the right. Finger guns are part of the controls.
 
-**Desktop release: v1.0.1.** [Play online](https://sanjayBahadur.github.io/SPACE-DEFENDERS-21st-Century/) · [Release notes](CHANGELOG.md). Gameplay is frozen for this release. See [the review and playtest record](docs/0.9-review.md) for validation and hardware testing limits. [Libraries, tools and feature ownership](docs/technology.md) maps each feature to its implementation and documents runtime and development dependencies.
+**[Play the game](https://spacedefenders.sanjaymalla.com/)** · **[Watch the trailer](https://youtu.be/lYjdcCrbLaQ)** · [Releases](https://github.com/sanjayBahadur/SPACE-DEFENDERS-21st-Century/releases)
 
-## Play locally
+I built Space Defenders to see whether hand gestures could carry an arcade game beyond a short demo. Getting a ship to follow your hand was the starting point. Making menus, firing, pauses and camera recovery feel consistent took most of the work.
 
-Requires Node.js 20.19+ or 22.12+.
+## Watch it in action
+
+[![Watch the Space Defenders gameplay trailer on YouTube](https://img.youtube.com/vi/lYjdcCrbLaQ/hqdefault.jpg)](https://youtu.be/lYjdcCrbLaQ)
+
+*The trailer features Sanjay Malla and Masyn Akira Knight trying the game at USF.*
+
+![Recorded gameplay showing the Pilot and Gunner views with hand tracking](docs/media/gameplay.gif)
+
+*Actual gameplay: the blue skeletons show what the camera is tracking. They stay visible to help you line up your hands.*
+
+## How to play
+
+Open the game on a desktop or laptop in landscape. Choose gesture controls and allow camera access, or use keyboard and mouse. There is a short briefing before each mission, and the pause screen keeps the gesture instructions nearby.
+
+| Job | With your hands | With keyboard and mouse |
+| --- | --- | --- |
+| Fly the ship | Close your left hand to grab and move it; open to release | WASD or arrow keys |
+| Aim and shoot | Point your right index finger; flick your thumb to fire | Mouse aim and left click |
+| Fire the cannon | Make a right fist; watch the heat bar | Hold Space or right click |
+| Navigate menus | Point with your right index and flick your thumb to select | Click buttons |
+| Pause | Losing a tracked hand pauses the mission | Esc or P |
+
+One player controls both stations. Losing either station ends the run. If tracking drops, bring both hands back, then select Resume, or switch to keyboard and mouse. You can skip the opening crawl and change music, effects and hand-overlay settings from the menus.
+
+Camera frames are processed in your browser and are not uploaded. Gesture controls need HTTPS or localhost. Touch controls are not implemented; camera performance depends on your device and lighting.
+
+## What is under the hood
+
+| Tool | What I use it for |
+| --- | --- |
+| **TypeScript** | Game logic, gesture interpretation, input state and shared UI controllers |
+| **Phaser 3** | The two game views, sprites, animation, scene lifecycle, timers and combat input |
+| **MediaPipe Hand Landmarker** | Detecting hand landmarks and handedness from webcam frames |
+| **Browser APIs** | Camera access, the Canvas hand overlay, Web Audio effects and streamed music |
+| **Vite** | Development server, production bundling and lazy loading of the vision library |
+| **Node test runner + Playwright** | Logic regression tests and browser checks against the built game |
+| **Cloudflare Pages** | Static hosting at the custom domain; gameplay and inference run on the visitor’s device |
+
+MediaPipe finds the landmarks. The game decides what they mean: which hand controls which station, whether a fist is closed, when a thumb flick counts as a shot, and where the menu pointer belongs. There is no separately trained gesture model.
+
+### The parts that needed care
+
+- **Keeping aiming steady without making it sluggish.** A local implementation of the 1€ filter smooths small movements while responding faster to larger ones. Inference processes each new camera frame once; ship movement and cannon heat use elapsed time rather than frame counts. See [hand tracking](src/services/HandTracker.ts) and [input filtering](src/utils/OneEuroFilter.ts).
+- **Making gestures work outside combat.** Home, pause and retry share a [gesture navigator](src/ui/GestureMenu.ts). A stable hover and fresh thumb flick confirm an action, so the flick used to start a mission does not also fire a shot. Pointer coordinates account for canvas scaling and letterboxing.
+- **Recovering when the camera stops helping.** Camera access is opt-in, the vision library and models load on demand, and GPU initialization can fall back to CPU. Missing hands pause play; returning hands get a fresh motion baseline. Keyboard play avoids downloading the hand model entirely.
+- **Cleaning up between runs.** Scene transitions release listeners, timers and active audio loops. Music and effects have separate saved controls; rapid effects have voice limits so a busy scene cannot create unlimited overlapping sounds.
+- **Checking the build people actually play.** Browser checks cover menu and mission flows, denied-camera fallback, audio recovery, and real model/WASM startup with a synthetic camera. They catch integration failures, while physical gesture feel still needs real playtesting.
+
+The artwork pipeline also converts the original images to lossless WebP and verifies decoded pixels. It reduced image downloads by **35.2%**, while keeping the original frame sizes and transparency. That saves transfer bytes, not decoded texture memory.
+
+[Full technology guide](docs/technology.md) · [Audio design and sources](docs/audio.md) · [Asset provenance](docs/assets-and-models.md)
+
+## Run locally
+
+Use Node.js 22.12+ (Node 20.19+ also works).
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open the displayed local URL. A ten-second, skippable opening crawl leads into the original space-opera menu. Each fresh visit offers **USE GESTURE CONTROLS** first, with **PLAY WITH KEYBOARD & MOUSE** available beside it. Choosing gestures requests camera access; the browser controls whether its permission dialog appears again. After choosing controls, select **START MISSION**. A four-second mission briefing shows both stations’ gestures and wishes you “Good luck, Pilot. May the Force be with you.” before gameplay begins. Retry shows the same briefing. The **HAND SKELETON** setting defaults to on and helps align gestures. Camera frames stay in your browser. Camera controls require HTTPS or localhost. Desktop landscape is recommended; gameplay does not yet provide touch controls.
-
-Point with your right index finger in a gun pose and flick your thumb to select menu actions. A moving selection box shows the current target on the home, pause, retry and credits screens; the home menu includes an animated gesture example. An active gesture session stays available when returning to menus. Choosing keyboard controls or leaving the page releases the camera. Credits automatically return after fifteen seconds; Back / Esc returns immediately.
-
-| Station            | Keyboard / mouse                                                      | Hand gestures                                                  |
-| ------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Pilot, left view   | WASD / arrows to move                                                 | Left fist to move; release to let go                           |
-| Gunner, right view | Mouse to aim; left click to fire; hold Space / right click for cannon | Right index to aim; thumb flick to fire; right fist for cannon |
-| Pause / menus     | Esc / P to pause or resume; click buttons                             | Right index to point; thumb flick to select                    |
-
-Protect both stations to survive. Pilot hull starts at 100: a meteor costs 18, a death ray costs 30, and black-hole exposure drains 8 per second. Accepted impacts grant 0.9 seconds of recovery against further discrete hits; black holes continue their gradual drain. Gunner defenses lose 25 per accepted hit with the same recovery window and retain three lives. Numeric health labels and the defeat message show which station was lost. The cannon heats over six seconds of sustained fire and warns at half heat. Overheating locks it until cooled.
-
-Losing either hand pauses the mission and names the missing station. Pose diagrams on the left show Pilot grab/release; diagrams on the right show Gunner aim/fire and the fist laser cannon. Return both hands, point at Resume with your right index, and flick to continue. Esc/P or mouse resume provides a manual fallback; **USE KEYBOARD & MOUSE** explicitly switches modes. Returning hands establish a fresh motion baseline so reconnection or a menu confirmation does not produce a stray shot.
-
-Controls process each new camera frame once, avoiding a display-timing gate that could reduce tracking cadence. Hand filtering and active ship/aim following are tuned for faster response while retaining jitter suppression. See the [technology guide](docs/technology.md) for the settings and validation limits.
-
-## Checks and production build
+For a production build and checks:
 
 ```sh
 npm test
 npm run check
 npm run build
+node scripts/check-static-hosting.mjs
+npx playwright install chromium
+SMOKE_BASE_PATH=/ npm run test:browser
 npm run preview
 ```
 
-CI runs the unit tests, TypeScript/production build and Chromium production checks. The browser checks cover keyboard play, briefing cancellation, pause/resume/menu cycles, camera-denial fallback, and real model/WASM startup using a generated camera stream. There is no separate linter configured. Serve `dist/` through a static host. For a repository subpath, build with:
+The smoke command starts and stops its own preview server. Tests use a synthetic camera stream to check model startup; they do not establish recognition accuracy for a real person. There is no separate linter configured.
 
-```sh
-npm run build -- --base=/SPACE-DEFENDERS-21st-Century/
-```
+Cloudflare serves the root-path build in `dist/`. GitHub Pages uses a separate build with `--base=/SPACE-DEFENDERS-21st-Century/`. The [release guide](docs/releasing.md) covers deployment, build artifacts and rollback.
 
-Use HTTPS for deployed camera play. All required models and WASM files are hosted locally under `public/models`; no model download is needed for keyboard play.
+## Credits
 
-## Production browser checks
+Created by **[Sanjay Malla](https://sanjaymalla.com/)** / [sanjayBahadur](https://github.com/sanjayBahadur).
 
-```sh
-npx playwright install chromium
-npm run build -- --base=/SPACE-DEFENDERS-21st-Century/
-npm run test:browser
-```
+Promotional video: **Masyn Akira Knight**. Beta testing: **Masyn Akira Knight, Jackson Poynor and Max**.
 
-The smoke command starts its own production preview and closes it afterward. For the deployed site, set `SMOKE_BASE_URL` to the full HTTPS URL, including its trailing slash. See [release/deployment procedures](docs/releasing.md). The automated camera stream checks model startup; it does not measure physical-hand recognition quality.
-
-## Distribution notices
-
-The build includes [third-party notices](public/legal/THIRD-PARTY-NOTICES.txt) and dependency license texts under `legal/`. [Asset and model provenance](docs/assets-and-models.md) records verified model/runtime sources and hashes.
-
-## Artwork pipeline
-
-Authored artwork is kept in `assets/source`. Runtime assets live in `public/assets` as lossless WebP. The encoding script checks every decoded pixel and preserves frame dimensions, transparency and animation alignment. Install Pillow in a Python environment to regenerate:
-
-```sh
-python scripts/optimize-assets.py
-```
-
-The image pass reduces bytes from 8,249,693 to 5,349,500 (35.2%). Decoded texture memory is unchanged.
-
-## Browser playtest
-
-Check the ten-second intro and Skip action, fresh-visit gesture choice, keyboard launch without camera permission, camera denial fallback, visible hand skeleton feedback, movement/fire/cannon, the four-second briefing on launch/retry, and point/flick selection through home, pause, defeat/retry and credits. Confirm no hazards run behind the briefing and that Back / Esc cancels its launch timer. Lose and recover each hand separately, confirm that gesture Resume requires both hands, and check manual fallback and focus-loss pause. Verify gradual health loss and recovery after overlapping impacts, and fifteen-second credits return. Repeat twenty mission cycles and watch for duplicate input/events or accumulating objects. Test failed asset loading and retry, narrow/short viewports and zoom, and a subpath production build.
-
-Real gesture accuracy and long-run performance need physical camera and representative hardware checks. Details are in the review.
-
-Created by Sanjay Malla / [sanjayBahadur](https://github.com/sanjayBahadur).
+Music includes **“Space Marines” by Telaron** ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)) and **“Out There” by yd** (CC0). Sound effects are from **Kenney** (CC0). [Audio credits](public/legal/audio-notices.txt) list sources and edits; [third-party notices](public/legal/THIRD-PARTY-NOTICES.txt) cover dependencies and are included in the distributed game.

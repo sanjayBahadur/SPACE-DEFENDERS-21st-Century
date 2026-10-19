@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Space Defenders · Gameplay recorder</title>
+<style>
+body{margin:0;background:#090b12;color:#f5f3dc;font:17px/1.6 system-ui,sans-serif}main{max-width:780px;margin:48px auto;padding:24px}h1{color:#ffe81f;line-height:1.2}button,a.button{display:inline-block;background:#ffe81f;color:#151515;padding:12px 20px;border:0;border-radius:5px;font:inherit;font-weight:700;text-decoration:none;cursor:pointer}button:disabled{opacity:.4;cursor:default}select{font:inherit;padding:7px;background:#171d2b;color:#fff}label{display:block;margin:18px 0}#stop{background:#e47e65}#status{padding:16px;background:#161c29;white-space:pre-line}#saved a{color:#ffe81f}small{color:#aeb8c9}nav{display:flex;gap:12px;flex-wrap:wrap}
+</style></head><body><main>
+<h1>Record Space Defenders</h1>
+<p>Open the game, then choose <strong>Start recording</strong>. Share the <strong>game browser tab</strong> and enable <strong>tab audio</strong>. Switch to the game and play.</p>
+<p><a class="button" id="open-game" href="/SPACE-DEFENDERS-21st-Century/" target="space-defenders-game">1 · Open game</a></p>
+<label>Auto-stop after <select id="duration"><option value="60">1 minute</option><option value="120" selected>2 minutes</option><option value="180">3 minutes</option></select></label>
+<label>Frame rate <select id="fps"><option value="60" selected>60 FPS</option><option value="30">30 FPS · lighter on the computer</option></select></label>
+<label><input type="checkbox" id="video-only"> Allow video-only capture if game audio is unavailable</label>
+<nav><button id="start">2 · Start recording</button><button id="stop" disabled>Stop &amp; save</button></nav>
+<p id="status" role="status">Ready. Use Chrome or Chromium for game-tab audio. Your microphone is not recorded.</p>
+<p><small>You can also stop using the browser’s Stop sharing control. Keep this page and the terminal open until the clip is saved.</small></p>
+<div id="saved" aria-live="polite"></div>
+<script type="module" src="recorder.js"></script>
+</main></body></html>
