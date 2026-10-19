@@ -2,7 +2,7 @@
 
 Production target: <https://spacedefenders.sanjaymalla.com/> on the existing Cloudflare Pages project `space-defenders-21st-century`. GitHub Pages remains a secondary deployment.
 
-Gameplay remains frozen. v1.0.1 fixes menu fingertip positioning without changing Gunner aiming or combat.
+Gameplay remains frozen. v1.1.0 adds sound, intro polish and release documentation while retaining the menu pointer fix and combat rules from v1.0.1.
 
 ## Verification
 
@@ -26,7 +26,7 @@ SMOKE_BASE_URL=https://spacedefenders.sanjaymalla.com/ npm run test:browser
 
 ## GitHub automation
 
-[Game checks](../.github/workflows/ci.yml) verifies pushes and pull requests. Its `verify` check is the merge gate.
+[Game checks](../.github/workflows/ci.yml) verifies pushes and pull requests. Both `verify` (GitHub Pages path) and `custom-domain` (root path) must pass before a release. The root job uploads `space-defenders-custom-domain.zip` in the `space-defenders-custom-domain` artifact.
 
 [Publish game](../.github/workflows/pages.yml) runs on `main` pushes and manual dispatch from `main`. It installs the lockfile, runs tests, builds with the repository prefix and runs the production smoke checks. It then creates `space-defenders-site.zip` and uploads the same `dist/` to GitHub Pages. Deployment depends on the successful build; pull requests never deploy to the production Pages environment.
 
@@ -38,8 +38,8 @@ The existing Cloudflare integration uses the default root-path `npm run build`. 
 
 1. Commit focused changes on the feature branch, inspect staged contents and run verification. Preserve published history.
 2. Push the branch and open a PR into `main`. Require passing `verify` and review the final changes before merging.
-3. Wait for `Publish game` to succeed. Repeat the smoke checks on the public HTTPS URL and inspect the live deployment.
-4. Create the version tag on that accepted merge commit. Download the `space-defenders-production` artifact from its successful deployment run and attach its `space-defenders-site.zip` to the GitHub Release. This ZIP is the output that passed the workflow checks; do not substitute a separate local rebuild.
+3. Wait for both Game checks jobs, Publish game and the connected Cloudflare Pages deployment to succeed. Repeat smoke checks on the custom-domain HTTPS URL and verify the live asset hashes.
+4. Create the version tag on that accepted merge commit. Download `space-defenders-custom-domain` from the successful main-branch Game checks run and attach its root-path ZIP and SHA-256 checksum to the GitHub Release. This ZIP is the output that passed the workflow checks; do not substitute a separate local rebuild. The separate `space-defenders-production` artifact from Publish game is built for the GitHub repository subpath, not a root-domain host.
 5. Include [changelog](../CHANGELOG.md), public playable link, supported desktop layout, and known hardware-testing limits. The ZIP/site includes [distribution notices](assets-and-models.md).
 6. Resolve implemented issues only after live verification, recording the release/PR that supplies the fix. Shield mechanics remain intentionally excluded by the owner.
 

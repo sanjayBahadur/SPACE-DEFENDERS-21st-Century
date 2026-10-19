@@ -1,16 +1,14 @@
 # Changelog
 
-## Unreleased — audio branch
+## 1.1.0 — 18 October 2026
 
-- Start the first opening crawl and its ten-second timer only after the theme begins playing, with explicit sound/silent choices and playback failure recovery.
-
-- Trim the intro/credits theme's 0.46-second opening silence for an immediate musical start.
-
-- Add gesture-accessible sound controls, saved music/effect volumes, scene mixes and bounded action feedback.
-- Use a credited heroic sci-fi theme for intro/credits, with quiet cockpit ambience elsewhere.
-- Add movement-driven engine hum, damaging black-hole siphon, meteor approach/impact and distinct enemy shots/rays.
-- Credit Masyn Akira Knight for the promotional video and Masyn Akira Knight, Jackson Poynor and Max as beta testers.
-- Document audio sources, per-file licenses and edits; verify audio loading, music switching and loop cleanup.
+- Add scene music and distinct firing, damage, engine, meteor, black-hole and enemy weapon sounds, with saved volume controls and bounded overlapping effects.
+- Start the ten-second opening crawl from a single entry button, with its theme after user interaction. Trim the theme’s opening silence and recover gracefully when playback is denied or stalls.
+- Simplify the entry screen and retain the original space-opera presentation, gesture controls and combat balance.
+- Expand music, promotional-video and beta-tester credits; include source and license notices in the build.
+- Restore the existing custom domain as the primary play link, add refreshable asset caching and validate uploads against static Pages Free limits.
+- Add a root-domain CI build with browser verification and a downloadable ZIP, alongside the GitHub Pages build.
+- Add the published YouTube trailer, a recorded gameplay preview and an implementation-focused README.
 
 ## 1.0.1 — 14 October 2026
 
