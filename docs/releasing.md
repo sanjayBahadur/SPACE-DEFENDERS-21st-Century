@@ -53,7 +53,7 @@ The workflow retains its production ZIP artifact for 30 days; release attachment
 
 The domain zone reports the Free Website plan. Cloudflare documents static Pages requests as free and unlimited; this game serves static files and runs graphics, audio and hand tracking on the visitor’s device. No Pages Functions, Workers, database, R2 bucket, or paid API is required or added. This does not audit unrelated account subscriptions or domain renewal charges.
 
-Run `node scripts/check-static-hosting.mjs` on the root build before upload. It rejects Worker/Functions output, environment files, non-root asset references, more than 20,000 files, and any asset over 25 MiB. Keep trailer recordings outside `public/` and `dist/`; upload those to YouTube. Hashed application assets receive long browser caching; HTML revalidates so new releases appear promptly. Unhashed model/audio files cache for one day.
+Run `node scripts/check-static-hosting.mjs` on the root build before upload. It rejects Worker/Functions output, environment files, non-root asset references, more than 20,000 files, and any asset over 25 MiB. Keep trailer recordings outside `public/` and `dist/`; upload those to YouTube. Application assets, artwork, models and audio cache for one day; HTML revalidates so new releases appear promptly. Artwork shares the assets directory with hashed bundles, so the directory does not use immutable caching.
 
 The connected Git build uses production branch `main`, command `npm run build`, and output `dist`. Never upload the GitHub Pages subpath build to the custom domain. An authorized direct upload can publish the checked local `dist/` to the existing project without pushing Git history:
 
