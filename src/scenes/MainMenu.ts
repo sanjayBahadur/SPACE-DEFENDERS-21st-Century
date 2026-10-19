@@ -50,11 +50,9 @@ export class MainMenu extends Phaser.Scene {
       `
             <section id="intro" aria-label="Opening crawl">
                 <div class="intro-controls">
-                    <p class="intro-kicker">21ST CENTURY · THE LAST LINE</p>
                     <img class="intro-logo" src="${import.meta.env.BASE_URL}assets/titlescreen/SpaceDefenders.webp" alt="Space Defenders">
-                    <p class="intro-invitation">A galaxy on the brink.<br>One defender between the fleet and home.</p>
                     <button id="start-intro">ENTER THE GALAXY FAR, FAR AWAY</button>
-                    <p id="intro-audio-status" role="status">Your mission awaits.</p>
+                    <p id="intro-audio-status" role="status"></p>
                 </div>
                 <div id="crawl-container" hidden><div class="crawl-content intro-crawl">
                     <h1 class="crawl-title">SPACE DEFENDERS</h1>

@@ -621,16 +621,15 @@ progress {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  width: min(680px, 90vw);
+  gap: clamp(20px, 4vh, 48px);
+  width: min(1120px, 92vw);
   text-align: center;
   color: #ffe81f;
 }
-.intro-logo { width: 100%; max-height: 26vh; object-fit: contain; }
+.intro-logo { width: 100%; max-height: 58dvh; object-fit: contain; }
 .intro-controls p { margin: 0; }
-.intro-kicker { color: #80a5db; font: 12px/1.5 "Courier New", monospace; letter-spacing: .16em; }
-.intro-invitation { font-size: clamp(16px, 2vw, 23px); line-height: 1.5; }
 #intro-audio-status { color: #80a5db; font: 12px/1.5 "Courier New", monospace; }
+#intro-audio-status:empty { display: none; }
 .intro-controls button {
   background: #000c;
   border: 1px solid #ffe81f88;
